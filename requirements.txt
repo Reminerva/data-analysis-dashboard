@@ -3,9 +3,6 @@ pandas
 scipy
 matplotlib
 seaborn
-jupyter
 streamlit
 babel
-unicodedata
 geopandas
-math

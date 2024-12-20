@@ -155,7 +155,7 @@ def create_df_brazil() -> gpd.GeoDataFrame:
     """
 
     # URL mentah file GeoJSON
-    url = "https://raw.githubusercontent.com/luizpedone/municipal-brazilian-geodata/refs/heads/master/data/Brasil.json
+    url = "https://raw.githubusercontent.com/luizpedone/municipal-brazilian-geodata/refs/heads/master/data/Brasil.json"
     
     # Membaca file GeoJSON
     brazil_df = gpd.read_file(url)
@@ -172,13 +172,14 @@ def create_df_brazil() -> gpd.GeoDataFrame:
     return brazil_df
 
 ### Mendapatkan df_cities
-def create_df_cities(brazil_df: gpd.GeoDataFrame,state_index: int) -> gpd.GeoDataFrame:
+def create_df_cities(brazil_df: gpd.GeoDataFrame, colors: list, state_index: int) -> gpd.GeoDataFrame:
 
     """
     Fungsi ini bertujuan untuk menghasilkan GeoPandas Data Frame df_cities yang berisi peta dari kota-kota pada state(negara) yang dipilih.
 
     Parameters:
         brazil_df (GeoPandas DataFrame): GeoPandas Data Frame brazil_df
+        colors (list): list warna yang digunakan pada peta brazil
         state_index (int): state yang dipilih oleh user lalu diambil indexnya
 
     Returns:
@@ -195,12 +196,7 @@ def create_df_cities(brazil_df: gpd.GeoDataFrame,state_index: int) -> gpd.GeoDat
     # Membaca file GeoJSON
     df_cities = gpd.read_file(url)
     
-    # Fungsi untuk menghapus aksen
-    def remove_accents(input_str):
-        nfkd_form = unicodedata.normalize('NFKD', input_str)
-        return ''.join([char for char in nfkd_form if not unicodedata.combining(char)])
-    
-    # Menghapus aksen di kolom 'city'
+  # Menghapus aksen di kolom 'city'
     df_cities['NOME'] = df_cities['NOME'].apply(remove_accents)
     df_cities['NOME'] = df_cities['NOME'].apply(lambda x: x.lower())
     
@@ -313,7 +309,7 @@ def create_df_product_supply(product_index: int, df_geo_point_sel: gpd.GeoDataFr
     # Product Category yang dipilih
     product_supply_select = prod_supply_counts.index[product_index]
 
-    df_product_supply = df_geo_point_cust[df_geo_point_cust['product_category_name_<lambda>'].apply(lambda x: find_prod(product_supply_select, x)) == True]
+    df_product_supply = df_geo_point_sel[df_geo_point_sel['product_category_name_<lambda>'].apply(lambda x: find_prod(product_supply_select, x)) == True]
     
     return df_product_supply
 
@@ -505,3 +501,68 @@ def create_klaster_sellers(df_sellers_merged: pd.DataFrame) -> pd.DataFrame:
 ## MEMBUAT FILTER
 min_date = df_order["order_purchase_timestamp"].min()
 max_date = df_order["order_purchase_timestamp"].max()
+
+
+## MEMBUAT FILTER
+min_date = df_order["order_purchase_timestamp"].min()
+max_date = df_order["order_purchase_timestamp"].max()
+
+with st.sidebar:
+    st.title('Proyek Data Analisis')
+    # Menambahkan logo perusahaan
+    st.image("https://learn.g2.com/hubfs/Imported%20sitepage%20images/1ZB5giUShe0gw9a6L69qAgsd7wKTQ60ZRoJC5Xq3BIXS517sL6i6mnkAN9khqnaIGzE6FASAusRr7w=w1439-h786.png")
+
+    # Mengambil start_date & end_date dari date_input
+    start_date, end_date = st.date_input(
+        label='Rentang Waktu',
+        min_value=min_date,
+        max_value=max_date,
+        value=[min_date, max_date]
+    )
+
+
+### Filter diterapkan
+df_order_update = df_order[(df_order["order_purchase_timestamp"] >= str(start_date)) &
+                           (df_order["order_purchase_timestamp"] <= str(end_date))]
+                           
+df_order_items_update = df_order_items[(df_order_items["shipping_limit_date"] >= str(start_date)) &
+                                       (df_order_items["shipping_limit_date"] <= str(end_date))]
+
+### Data yang telah difilter diterapkan untuk membuat beberapa data frame
+pivot_seller, pivot_order = create_pivot_seller_and_order(df_order_items_update,
+                                                          df_product,
+                                                          df_order_payments,
+                                                          df_order_update)
+
+df_sellers_merged, df_customer_merged = create_df_sellers_and_customer_merged(pivot_seller,
+                                                                              df_sellers,
+                                                                              pivot_order,
+                                                                              df_order_update,
+                                                                              df_customer)
+
+brazil_df =  create_df_brazil()
+
+df_cities =  create_df_cities(brazil_df, colors, state_index)
+
+df_geo_point_cust =  create_df_geo_point_cust(df_customer_merged)
+
+df_geo_point_sel =  create_df_geo_point_sel(df_sellers_merged)
+
+df_product_demand =  create_df_product_demand(product_index, df_geo_point_cust)
+
+df_product_supply =  create_df_product_supply(product_index, df_geo_point_sel)
+
+df_sellers_city_merged = create_df_sellers_city_merged(df_sellers_merged)
+
+penjualan_kategoribarang_di_kota = return_kategori_di_kota_jual(df_sellers_city_merged)
+
+df_customer_city_merged = create_df_customer_city_merged(df_customer_merged)
+
+pembelian_kategoribarang_di_kota = return_kategori_di_kota_jual(df_customer_city_merged)
+
+df_customer_klaster = create_klaster_customer(df_customer_merged)
+
+df_sellers_klaster = create_klaster_sellers(df_sellers_merged)
+
+## DEPLOYMENT
+st.title('Proyek Data Analisis :sparkles:')
