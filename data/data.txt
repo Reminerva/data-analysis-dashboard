@@ -1,0 +1,2 @@
+Thee data used has been cleaned prior to deploying the app. Visit link below for the data cleaning process.
+https://colab.research.google.com/drive/1nEoGv81s4V6xQXyWLrH9mi97WQuH8pmz#scrollTo=7dtxhAPrkhPL
