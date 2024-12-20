@@ -540,17 +540,17 @@ df_sellers_merged, df_customer_merged = create_df_sellers_and_customer_merged(pi
                                                                               df_order_update,
                                                                               df_customer)
 
-brazil_df =  create_df_brazil()
+# brazil_df =  create_df_brazil()
 
-df_cities =  create_df_cities(brazil_df, colors, state_index)
+# df_cities =  create_df_cities(brazil_df, colors, state_index)
 
-df_geo_point_cust =  create_df_geo_point_cust(df_customer_merged)
+# df_geo_point_cust =  create_df_geo_point_cust(df_customer_merged)
 
-df_geo_point_sel =  create_df_geo_point_sel(df_sellers_merged)
+# df_geo_point_sel =  create_df_geo_point_sel(df_sellers_merged)
 
-df_product_demand =  create_df_product_demand(product_index, df_geo_point_cust)
+# df_product_demand =  create_df_product_demand(product_index, df_geo_point_cust)
 
-df_product_supply =  create_df_product_supply(product_index, df_geo_point_sel)
+# df_product_supply =  create_df_product_supply(product_index, df_geo_point_sel)
 
 df_sellers_city_merged = create_df_sellers_city_merged(df_sellers_merged)
 
@@ -564,5 +564,6 @@ df_customer_klaster = create_klaster_customer(df_customer_merged)
 
 df_sellers_klaster = create_klaster_sellers(df_sellers_merged)
 
+
 ## DEPLOYMENT
-st.title('Proyek Data Analisis :sparkles:')
+st.title('Proyek Data Analisis')
