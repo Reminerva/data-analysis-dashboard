@@ -682,7 +682,7 @@ with col2:
 
 ## Sales Analysis
 st.header('SALES ANALYSIS')
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 with col1:
 
@@ -708,7 +708,11 @@ with col1:
     ax.tick_params(axis='y', )
     ax.tick_params(axis='x', )
 
+    plt.tight_layout()
     st.pyplot(fig, clear_figure=True)
+
+with col2:
+
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
 
     df_0 = df_sellers_merged.groupby(by='seller_city').agg({
@@ -729,7 +733,11 @@ with col1:
     ax.tick_params(axis='y', )
     ax.tick_params(axis='x', )
     
+    plt.tight_layout()
     st.pyplot(fig, clear_figure=True)
+
+with col3:
+
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
 
     df_0 = df_sellers_merged.groupby(by='seller_id').agg({
@@ -752,13 +760,9 @@ with col1:
     ax.tick_params(axis='y', )
     ax.tick_params(axis='x', )
 
-    
-
+    plt.tight_layout()
     st.pyplot(fig, clear_figure=True)
 
-with col2:
-
-    st.text("s")
 
 ## Customer Analysis
 st.header('CUSTOMER ANALYSIS')
