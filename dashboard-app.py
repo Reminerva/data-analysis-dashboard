@@ -566,4 +566,273 @@ df_sellers_klaster = create_klaster_sellers(df_sellers_merged)
 
 
 ## DEPLOYMENT
-st.title('Proyek Data Analisis')
+
+
+## OVERVIEW
+st.header('OVERVIEW')
+col1, col2 = st.columns(border=True, spec=[0.4, 0.6])
+
+with col1:
+
+    # Revenue
+    st.text("Total Revenue E-Commerce")
+    st.text(f"{df_customer_merged['payment_value_sum'].sum()} BRL")
+
+    # Transaksi
+    st.text("Total Transactions")
+    kelompok_seller = pd.concat([df_order[df_order['order_status']=='delivered']['order_id'],
+                           df_order[df_order['order_status']=='invoiced']['order_id'],
+                             df_order[df_order['order_status']=='shipped']['order_id'],
+                             df_order[df_order['order_status']=='processing']['order_id'],
+                             df_order[df_order['order_status']=='created']['order_id'],
+                             df_order[df_order['order_status']=='approved']['order_id']])
+    st.text(f"{len(df_order_items[df_order_items['order_id'].isin(kelompok_seller)].index)} Transactions")
+
+    # Active Users
+    st.text("Active Users")
+    st.text(f"{df_customer_merged['customer_id'].iloc[:-1].nunique()} Users")
+        
+with col2:
+
+    # Total Revenue Graphic
+
+    ## Ekstrak tahun dan bulan
+    df_test = df_customer_merged.copy()
+    df_test['year_month'] = df_customer_merged['order_purchase_timestamp'].dt.to_period('M')
+
+    ## Kelompokkan berdasarkan year_month dan jumlahkan payment_value_sum
+    monthly_summary = df_test.groupby('year_month')['payment_value_sum'].sum().reset_index()
+
+    ## Ubah kembali year_month ke string (opsional)
+    monthly_summary['year_month'] = monthly_summary['year_month'].astype(str)
+
+    monthly_summary = monthly_summary.iloc[:-1]
+    
+    ## Plotting
+    ax = monthly_summary['payment_value_sum'].plot(
+        kind='line',
+        figsize=(8, 2.5),
+        title='Monthly Revenue Trend',
+        marker='o'
+    )
+
+    plt.gca().spines[['top', 'right']].set_visible(False)
+    plt.ylabel('Revenue (BRL)')
+    plt.xlabel('Month-Year')
+
+    ## Menambahkan anotasi untuk setiap titik
+    for idx, value in enumerate(monthly_summary['payment_value_sum']):
+        ax.annotate(
+            f'{value:.0f}',
+            xy=(idx, value),
+            xytext=(0, 5),
+            textcoords='offset points',
+            ha='center',
+            fontsize=8
+        )
+
+    st.pyplot(plt, clear_figure=True)
+
+    # Total Transaksi Graphic
+
+    daily_transactions = df_order_items[df_order_items['order_id'].isin(kelompok_seller)].copy()
+    daily_transactions['shipping_limit_date'] = pd.to_datetime(daily_transactions['shipping_limit_date'])
+
+    ## Ekstrak tahun dan bulan
+    daily_transactions['year_month_day'] = daily_transactions['shipping_limit_date'].dt.to_period('D')
+    daily_transactions = daily_transactions.sort_values(by='year_month_day', ascending=True).reset_index()
+    daily_transactions.drop(columns='index', inplace = True)
+    daily_transactions = daily_transactions.iloc[:-3]
+
+    monthly_transactions = daily_transactions.copy()
+
+    ## Ekstrak tahun dan bulan
+    monthly_transactions['year_month'] = daily_transactions['year_month_day'].dt.to_timestamp().dt.to_period('M')
+
+    ## Kelompokkan berdasarkan year_month dan jumlahkan payment_value_sum
+    monthly_transactions = monthly_transactions.groupby('year_month')['seller_id'].count().reset_index()
+    monthly_transactions = monthly_transactions.iloc[:-1]
+
+    ax = monthly_transactions['seller_id'].plot(
+        kind='line',
+        figsize=(8, 2.5),
+        title='Monthly Transactions Trend',
+        marker='o'
+    )
+    plt.gca().spines[['top', 'right']].set_visible(False)
+    plt.ylabel('Transactions')
+    plt.xlabel('Month-Year')
+
+    ## Menambahkan anotasi untuk setiap titik
+    for idx, value in enumerate(monthly_transactions['seller_id']):
+        ax.annotate(
+            f'{value:.0f}',
+            xy=(idx, value),
+            xytext=(0, 5),
+            textcoords='offset points',
+            ha='center',
+            fontsize=8
+        )
+
+    st.pyplot(plt, clear_figure=True)
+
+    # Active Sellers
+    st.text("Active Sellers")
+    st.text(f"{df_sellers_merged['seller_id'].nunique()} Sellers")
+
+## Sales Analysis
+st.header('SALES ANALYSIS')
+col1, col2 = st.columns(2)
+
+with col1:
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+
+    df_0 = df_sellers_merged.groupby(by='seller_state').agg({
+                                                        'price_sum': 'sum'
+                                                        }).sort_values(by = ('price_sum'), ascending = False).head(5)
+    df_0 = df_0.sort_values(by = ('price_sum'), ascending = False)
+    
+    colors = ["#8F4700", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3"]
+
+    sns.barplot(y=df_0.index,
+                x=df_0['price_sum'],
+                data=df_0,
+                palette=colors,
+                ax=ax
+                )
+                
+    ax.set_xlabel("Total Penghasilan (Juta BRL)")
+    ax.set_ylabel("Nama State")
+    ax.set_title("Top 5 Total Penghasilan Seluruh Seller di Setiap State")
+    ax.tick_params(axis='y', )
+    ax.tick_params(axis='x', )
+
+    st.pyplot(fig, clear_figure=True)
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+
+    df_0 = df_sellers_merged.groupby(by='seller_city').agg({
+                                                        'price_sum': 'sum'
+                                                        }).sort_values(by = ('price_sum'), ascending = False).head(5)
+    df_0 = df_0.sort_values(by = ('price_sum'), ascending = False)
+    
+    sns.barplot(y=df_0.index,
+                x=df_0['price_sum'],
+                data=df_0,
+                palette=colors,
+                ax=ax
+                )    
+    
+    ax.set_xlabel("Total Penghasilan (Juta BRL)")
+    ax.set_ylabel("Nama City")
+    ax.set_title("Top 5 Total Penghasilan Seluruh Seller di Setiap Kota")
+    ax.tick_params(axis='y', )
+    ax.tick_params(axis='x', )
+    
+    st.pyplot(fig, clear_figure=True)
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+
+    df_0 = df_sellers_merged.groupby(by='seller_id').agg({
+                                                        'price_sum': 'sum'
+                                                        }).sort_values(by = ('price_sum'), ascending = False).head(5)
+    df_0 = df_0.sort_values(by = ('price_sum'), ascending = False)
+    
+    index_ = [i[:3]+'...' for i in df_0.index]
+
+    sns.barplot(y=index_,
+                x=df_0['price_sum'],
+                data=df_0,
+                palette=colors,
+                ax=ax
+                )   
+
+    ax.set_xlabel("Total Penghasilan (BRL)")
+    ax.set_ylabel("ID Seller")
+    ax.set_title("Top 5 Total Penghasilan Seller")
+    ax.tick_params(axis='y', )
+    ax.tick_params(axis='x', )
+
+    
+
+    st.pyplot(fig, clear_figure=True)
+
+with col2:
+
+    st.text("s")
+
+## Customer Analysis
+st.header('CUSTOMER ANALYSIS')
+col1, col2 = st.columns(2)
+
+with col1:
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+
+    df_0 = df_customer_merged.groupby(by='customer_state').agg({
+                                                        'payment_value_sum': 'sum'
+                                                        }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
+    df_0 = df_0.sort_values(by = ('payment_value_sum'), ascending = False)
+    
+    colors = ["#8F4700", "#D3D3D3","#D3D3D3", "#D3D3D3", "#D3D3D3"]
+
+    sns.barplot(y=df_0.index,
+                x=df_0['payment_value_sum'],
+                data=df_0,
+                palette=colors,
+                ax=ax
+                )
+    ax.set_xlabel("Total Pengeluaran (Juta BRL)")
+    ax.set_ylabel("Nama State")
+    ax.set_title("Top 5 Total Pengeluaran Seluruh Customer di Setiap State")
+    ax.tick_params(axis='y',)
+    ax.tick_params(axis='x',)
+
+    st.pyplot(fig, clear_figure=True)
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+
+    df_0 = df_customer_merged.groupby(by='customer_city').agg({
+                                                        'payment_value_sum': 'sum'
+                                                        }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
+    df_0 = df_0.sort_values(by = ('payment_value_sum'), ascending = False)
+    
+    sns.barplot(y=df_0.index,
+                x=df_0['payment_value_sum'],
+                data=df_0,
+                palette=colors,
+                ax=ax
+                )    
+    
+    ax.set_xlabel("Total Pengeluaran (Juta BRL)")
+    ax.set_ylabel("Nama City")
+    ax.set_title("Top 5 Total Pengeluaran Seluruh Customer di Setiap Kota")
+    ax.tick_params(axis='y',)
+    ax.tick_params(axis='x',)
+
+    st.pyplot(fig, clear_figure=True)
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+    
+    df_0 = df_customer_merged.groupby(by='customer_id').agg({
+                                                        'payment_value_sum': 'sum'
+                                                        }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
+    df_0 = df_0.sort_values(by = ('payment_value_sum'), ascending = False)
+    
+    index_ = [i[:3]+'...' for i in df_0.index]
+
+    sns.barplot(y=index_,
+                x=df_0['payment_value_sum'],
+                data=df_0,
+                palette=colors,
+                ax=ax
+                )   
+
+    ax.set_xlabel("Total Pengeluaran (BRL)")
+    ax.set_ylabel("ID Customer")
+    ax.set_title("Top 5 Total Pengeluaran Customer")
+    ax.tick_params(axis='y',)
+    ax.tick_params(axis='x',)
+
+    st.pyplot(fig, clear_figure=True)
+
+with col2:
+
+    st.text("s")
