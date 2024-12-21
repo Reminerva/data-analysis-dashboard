@@ -22,6 +22,24 @@ df_geolocation = pd.read_csv('data/df_geolocation_clean.csv')
 df_order['order_purchase_timestamp'] = pd.to_datetime(df_order['order_purchase_timestamp'])
 df_order_items['shipping_limit_date'] = pd.to_datetime(df_order_items['shipping_limit_date'])
 
+## Kelompok order_id
+kelompok_cancel_unav = pd.concat([df_order[df_order['order_status']=='canceled']['order_id'],
+                                df_order[df_order['order_status']=='unavailable']['order_id']])
+
+kelompok_seller = pd.concat([df_order[df_order['order_status']=='delivered']['order_id'],
+                           df_order[df_order['order_status']=='invoiced']['order_id'],
+                             df_order[df_order['order_status']=='shipped']['order_id'],
+                             df_order[df_order['order_status']=='processing']['order_id'],
+                             df_order[df_order['order_status']=='created']['order_id'],
+                             df_order[df_order['order_status']=='approved']['order_id']])
+
+kelompok_customer = pd.concat([df_order[df_order['order_status']=='delivered']['order_id'],
+                             df_order[df_order['order_status']=='shipped']['order_id'],
+                             df_order[df_order['order_status']=='invoiced']['order_id'],
+                             df_order[df_order['order_status']=='processing']['order_id'],
+                             df_order[df_order['order_status']=='created']['order_id'],
+                             df_order[df_order['order_status']=='approved']['order_id']])
+
 ## Kumpulan Fungsi
 
 ### Menghapus Aksen
@@ -58,23 +76,6 @@ def create_pivot_seller_and_order(df_order_items: pd.DataFrame,
         Data Frame pivot_seller dan  Data Frame pivot_order        
     """
 
-    kelompok_cancel_unav = pd.concat([df_order[df_order['order_status']=='canceled']['order_id'],
-                                    df_order[df_order['order_status']=='unavailable']['order_id']])
-
-    kelompok_seller = pd.concat([df_order[df_order['order_status']=='delivered']['order_id'],
-                            df_order[df_order['order_status']=='invoiced']['order_id'],
-                                df_order[df_order['order_status']=='shipped']['order_id'],
-                                df_order[df_order['order_status']=='processing']['order_id'],
-                                df_order[df_order['order_status']=='created']['order_id'],
-                                df_order[df_order['order_status']=='approved']['order_id']])
-
-    kelompok_customer = pd.concat([df_order[df_order['order_status']=='delivered']['order_id'],
-                             df_order[df_order['order_status']=='shipped']['order_id'],
-                             df_order[df_order['order_status']=='invoiced']['order_id'],
-                             df_order[df_order['order_status']=='processing']['order_id'],
-                             df_order[df_order['order_status']=='created']['order_id'],
-                             df_order[df_order['order_status']=='approved']['order_id']])
-    
     def create_pivot_seller(df_order_items, df_product):
 
         df_temp = pd.merge(df_order_items, df_product, on='product_id', how='inner')
@@ -144,7 +145,18 @@ def create_df_sellers_and_customer_merged(pivot_seller: pd.DataFrame,
 
     return df_sellers_merged, df_customer_merged
 
+### Mendapatkan monthly_summary
 def create_monthly_summary(df_customer_merged: pd.DataFrame) -> pd.DataFrame:
+
+    """
+    Fungsi ini bertujuan untuk menghasilkan Data Frame monthly_summary
+
+    Parameters:
+        df_customer_merged (pandas DataFrame): Data Frame df_customer_merged
+
+    Returns:
+        monthly_summary: Data Frame monthly_summary        
+    """
 
     ## Ekstrak tahun dan bulan
     df_test = df_customer_merged.copy()
@@ -160,6 +172,7 @@ def create_monthly_summary(df_customer_merged: pd.DataFrame) -> pd.DataFrame:
 
     return monthly_summary
 
+### Mendapatkan monthly_transactions
 def create_monthly_transactions(df_order_items: pd.DataFrame) -> pd.DataFrame:
 
     daily_transactions = df_order_items[df_order_items['order_id'].isin(kelompok_seller)].copy()
@@ -182,6 +195,68 @@ def create_monthly_transactions(df_order_items: pd.DataFrame) -> pd.DataFrame:
     monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2020-04'].index)
 
     return monthly_transactions
+
+### Mendapatkan df_monthly_seller_state
+def create_df_monthly_seller_state(state: str, df_order_items: pd.DataFrame, df_sellers: pd.DataFrame, df_order: pd.DataFrame) -> pd.DataFrame:
+
+    df_test = df_order_items[df_order_items['order_id'].isin(kelompok_seller)][['order_id', 'seller_id', 'price']]
+    df_test = pd.merge(df_test, df_sellers[['seller_id', 'seller_city', 'seller_state']], on='seller_id', how='left')
+    df_test = pd.merge(df_test, df_order[['order_id', 'order_purchase_timestamp']], on='order_id', how='left')
+    
+    df_test = df_test[df_test.seller_state == state].groupby(by='order_purchase_timestamp').agg({'price':'sum'})
+    df_test = df_test.reset_index()
+    
+    df_test['year_month'] = df_test['order_purchase_timestamp'].dt.to_period('M')
+    df_monthly_seller_state = df_test.groupby(by='year_month').agg({'price':'sum'})
+    df_monthly_seller_state = df_monthly_seller_state.drop(index=df_monthly_seller_state[df_monthly_seller_state.index == '2018-09'].index)
+
+    return df_monthly_seller_state
+
+### Mendapatkan df_monthly_seller_city
+def create_df_monthly_seller_city(city: str, df_order_items: pd.DataFrame, df_sellers: pd.DataFrame, df_order: pd.DataFrame) -> pd.DataFrame:
+
+    df_test = df_order_items[df_order_items['order_id'].isin(kelompok_seller)][['order_id', 'seller_id', 'price']]
+    df_test = pd.merge(df_test, df_sellers[['seller_id', 'seller_state', 'seller_city']], on='seller_id', how='left')
+    df_test = pd.merge(df_test, df_order[['order_id', 'order_purchase_timestamp']], on='order_id', how='left')
+    
+    df_test = df_test[df_test.seller_city == city].groupby(by='order_purchase_timestamp').agg({'price':'sum'})
+    df_test = df_test.reset_index()
+    
+    df_test['year_month'] = df_test['order_purchase_timestamp'].dt.to_period('M')
+    df_monthly_seller_city = df_test.groupby(by='year_month').agg({'price':'sum'})
+    df_monthly_seller_city = df_monthly_seller_city.drop(index=df_monthly_seller_city[df_monthly_seller_city.index == '2018-09'].index)
+
+    return df_monthly_seller_city
+
+### Mendapatkan df_monthly_customer_state
+def create_df_monthly_customer_state(state:str, df_order: pd.DataFrame, df_order_payments: pd.DataFrame, df_customer: pd.DataFrame) -> pd.DataFrame:
+
+    df_test = df_order[df_order.order_id.isin(kelompok_customer)][['order_id', 'customer_id', 'order_purchase_timestamp']]
+    df_test = pd.merge(df_test, df_order_payments[['order_id', 'payment_value']], on='order_id', how='left')
+    df_test = pd.merge(df_test, df_customer[['customer_id', 'customer_city', 'customer_state']], on='customer_id', how='left')
+
+    df_test = df_test[df_test.customer_state == state].groupby(by='order_purchase_timestamp').agg({'payment_value':'sum'})
+    df_test = df_test.reset_index()
+    df_test['year_month'] = df_test['order_purchase_timestamp'].dt.to_period('M')
+    df_monthly_customer_state = df_test.groupby(by='year_month').agg({'payment_value':'sum'})
+    df_monthly_customer_state = df_monthly_customer_state.drop(index=df_monthly_customer_state[df_monthly_customer_state.index == '2018-09'].index)
+    
+    return df_monthly_customer_state
+
+### Mendapatkan df_monthly_customer_city
+def create_df_monthly_customer_city(city:str, df_order: pd.DataFrame, df_order_payments: pd.DataFrame, df_customer: pd.DataFrame) -> pd.DataFrame:
+
+    df_test = df_order[df_order.order_id.isin(kelompok_customer)][['order_id', 'customer_id', 'order_purchase_timestamp']]
+    df_test = pd.merge(df_test, df_order_payments[['order_id', 'payment_value']], on='order_id', how='left')
+    df_test = pd.merge(df_test, df_customer[['customer_id', 'customer_city', 'customer_state']], on='customer_id', how='left')
+
+    df_test = df_test[df_test.customer_city == city].groupby(by='order_purchase_timestamp').agg({'payment_value':'sum'})
+    df_test = df_test.reset_index()
+    df_test['year_month'] = df_test['order_purchase_timestamp'].dt.to_period('M')
+    df_monthly_customer_city = df_test.groupby(by='year_month').agg({'payment_value':'sum'})
+    df_monthly_customer_city = df_monthly_customer_city.drop(index=df_monthly_customer_city[df_monthly_customer_city.index == '2018-09'].index)
+    
+    return df_monthly_customer_city
 
 ### Mendapatkan df_brazil
 def create_df_brazil() -> gpd.GeoDataFrame:
@@ -222,7 +297,7 @@ def create_df_cities(brazil_df: gpd.GeoDataFrame, colors: list, state_index: int
         state_index (int): state yang dipilih oleh user lalu diambil indexnya
 
     Returns:
-        gpd.GeoDataFrame (df_cities):
+        df_cities (gpd.GeoDataFrame):
         GeoPandas Data Frame df_cities       
     """
 
@@ -619,12 +694,6 @@ with col1:
 
     # Transaksi
     st.text("Total Transactions")
-    kelompok_seller = pd.concat([df_order[df_order['order_status']=='delivered']['order_id'],
-                                df_order[df_order['order_status']=='invoiced']['order_id'],
-                                df_order[df_order['order_status']=='shipped']['order_id'],
-                                df_order[df_order['order_status']=='processing']['order_id'],
-                                df_order[df_order['order_status']=='created']['order_id'],
-                                df_order[df_order['order_status']=='approved']['order_id']])
     st.text(f"{len(df_order_items[df_order_items['order_id'].isin(kelompok_seller)].index)} Transactions")
 
     # Active Users
@@ -639,7 +708,7 @@ with col2:
     ## Plotting
     ax = monthly_summary['payment_value_sum'].plot(
         kind='line',
-        figsize=(8, 2.5),
+        figsize=(8, 3.5),
         title='Monthly Revenue Trend',
         marker='o'
     )
@@ -659,14 +728,16 @@ with col2:
             fontsize=8
         )
 
-    st.pyplot(plt, clear_figure=True)
+    plt.tight_layout()
+    st.pyplot(plt)
+    plt.close()
 
     # Total Transaksi Graphic
     monthly_transactions = create_monthly_transactions(df_order_items)
     
     ax = monthly_transactions['seller_id'].plot(
         kind='line',
-        figsize=(8, 2.5),
+        figsize=(8, 3.5),
         title='Monthly Transactions Trend',
         marker='o'
     )
@@ -685,7 +756,9 @@ with col2:
             fontsize=8
         )
 
-    st.pyplot(plt, clear_figure=True)
+    plt.tight_layout()
+    st.pyplot(plt)
+    plt.close()
 
     # Active Sellers
     st.text("Active Sellers")
@@ -693,11 +766,11 @@ with col2:
 
 ## Sales Analysis
 st.header('SALES ANALYSIS')
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 
 with col1:
 
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
 
     df_0 = df_sellers_merged.groupby(by='seller_state').agg({
                                                         'price_sum': 'sum'
@@ -720,11 +793,10 @@ with col1:
     ax.tick_params(axis='x', )
 
     plt.tight_layout()
-    st.pyplot(fig, clear_figure=True)
+    st.pyplot(fig)
+    plt.close()
 
-with col2:
-
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
 
     df_0 = df_sellers_merged.groupby(by='seller_city').agg({
                                                         'price_sum': 'sum'
@@ -747,11 +819,10 @@ with col2:
     ax.tick_params(axis='x', )
     
     plt.tight_layout()
-    st.pyplot(fig, clear_figure=True)
+    st.pyplot(fig)
+    plt.close()
 
-with col3:
-
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
 
     df_0 = df_sellers_merged.groupby(by='seller_id').agg({
                                                         'price_sum': 'sum'
@@ -774,8 +845,88 @@ with col3:
     ax.tick_params(axis='x', )
 
     plt.tight_layout()
-    st.pyplot(fig, clear_figure=True)
+    st.pyplot(fig)
+    plt.close()
 
+with col2:
+    
+    df_0 = df_sellers_merged.groupby(by='seller_state').agg({
+                                'price_sum': 'sum',
+                                'product_category_name_<lambda>': 'sum'
+                                }).sort_values(by = ('price_sum'), ascending = False).head(8)
+    state = st.selectbox(
+        label="Choose State:",
+        options=df_0.index,
+        index=0
+    )
+
+    df_monthly_seller_state = create_df_monthly_seller_state(state, df_order_items, df_sellers, df_order)
+
+    ## Plotting
+    ax = df_monthly_seller_state['price'].plot(
+            kind='line',
+            figsize=(8, 3.5),
+            title='Monthly Revenue Trend',
+            marker='o'
+        )
+
+    plt.gca().spines[['top', 'right']].set_visible(False)
+    plt.ylabel('Revenue (BRL)')
+    plt.xlabel('Month-Year')
+
+    ## Menambahkan anotasi untuk setiap titik
+    for idx, value in enumerate(df_monthly_seller_state['price']):
+            ax.annotate(
+                f'{value:.0f}',
+                xy=(idx, value),
+                xytext=(0, 5),
+                textcoords='offset points',
+                ha='center',
+                fontsize=8
+            )
+    
+    plt.tight_layout()
+    st.pyplot(plt)
+    plt.close()
+
+    df_0 = df_sellers_merged.groupby(by='seller_city').agg({
+                                'price_sum': 'sum',
+                                'product_category_name_<lambda>': 'sum'
+                                }).sort_values(by = ('price_sum'), ascending = False).head(8)
+    city = st.selectbox(
+        label="Choose City:",
+        options=df_0.index,
+        index=0
+    )
+
+    df_monthly_seller_city = create_df_monthly_seller_city(city, df_order_items, df_sellers, df_order)
+
+    ## Plotting
+    ax = df_monthly_seller_city['price'].plot(
+            kind='line',
+            figsize=(8, 3.5),
+            title='Monthly Revenue Trend',
+            marker='o'
+        )
+
+    plt.gca().spines[['top', 'right']].set_visible(False)
+    plt.ylabel('Revenue (BRL)')
+    plt.xlabel('Month-Year')
+
+    ## Menambahkan anotasi untuk setiap titik
+    for idx, value in enumerate(df_monthly_seller_city['price']):
+            ax.annotate(
+                f'{value:.0f}',
+                xy=(idx, value),
+                xytext=(0, 5),
+                textcoords='offset points',
+                ha='center',
+                fontsize=8
+            )
+    
+    plt.tight_layout()
+    st.pyplot(plt)
+    plt.close()
 
 ## Customer Analysis
 st.header('CUSTOMER ANALYSIS')
@@ -783,7 +934,12 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+    # st.markdown("<p> </p>", unsafe_allow_html=True)
+    # st.markdown("<p> </p>", unsafe_allow_html=True)
+    # st.markdown("<p> </p>", unsafe_allow_html=True)
+    # st.markdown("<p> </p>", unsafe_allow_html=True)
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
 
     df_0 = df_customer_merged.groupby(by='customer_state').agg({
                                                         'payment_value_sum': 'sum'
@@ -804,8 +960,11 @@ with col1:
     ax.tick_params(axis='y',)
     ax.tick_params(axis='x',)
 
-    st.pyplot(fig, clear_figure=True)
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+    plt.tight_layout()
+    st.pyplot(fig)
+    plt.close()
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
 
     df_0 = df_customer_merged.groupby(by='customer_city').agg({
                                                         'payment_value_sum': 'sum'
@@ -827,8 +986,11 @@ with col1:
     ax.tick_params(axis='y',)
     ax.tick_params(axis='x',)
 
-    st.pyplot(fig, clear_figure=True)
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 2.5))
+    plt.tight_layout()
+    st.pyplot(fig)
+    plt.close()
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
     
     df_0 = df_customer_merged.groupby(by='customer_id').agg({
                                                         'payment_value_sum': 'sum'
@@ -850,8 +1012,86 @@ with col1:
     ax.tick_params(axis='y',)
     ax.tick_params(axis='x',)
 
-    st.pyplot(fig, clear_figure=True)
+    plt.tight_layout()
+    st.pyplot(fig)
+    plt.close()
 
 with col2:
 
-    st.text("s")
+    df_0 = df_customer_merged.groupby(by='customer_state').agg({
+                                'payment_value_sum': 'sum',
+                                'product_category_name_<lambda>': 'sum'
+                                }).sort_values(by = ('payment_value_sum'), ascending = False).head(8)
+    state = st.selectbox(
+        label="Choose State:",
+        options=df_0.index,
+        index=0
+    )
+
+    df_monthly_customer_state = create_df_monthly_customer_state(state, df_order, df_order_payments, df_customer)
+    
+    ## Plotting
+    ax = df_monthly_customer_state['payment_value'].plot(
+            kind='line',
+            figsize=(8, 3.5),
+            title='Monthly Revenue Trend',
+            marker='o'
+        )
+
+    plt.gca().spines[['top', 'right']].set_visible(False)
+    plt.ylabel('Revenue (BRL)')
+    plt.xlabel('Month-Year')
+
+        ## Menambahkan anotasi untuk setiap titik
+    for idx, value in enumerate(df_monthly_customer_state['payment_value']):
+            ax.annotate(
+                f'{value:.0f}',
+                xy=(idx, value),
+                xytext=(0, 5),
+                textcoords='offset points',
+                ha='center',
+                fontsize=8
+            )
+
+    plt.tight_layout()
+    st.pyplot(plt)
+    plt.close()
+
+    df_0 = df_customer_merged.groupby(by='customer_city').agg({
+                                'payment_value_sum': 'sum',
+                                'product_category_name_<lambda>': 'sum'
+                                }).sort_values(by = ('payment_value_sum'), ascending = False).head(8)
+    city = st.selectbox(
+        label="Choose City:",
+        options=df_0.index,
+        index=0
+    )
+
+    df_monthly_customer_city = create_df_monthly_customer_city(city, df_order, df_order_payments, df_customer)
+    
+    ## Plotting
+    ax = df_monthly_customer_city['payment_value'].plot(
+            kind='line',
+            figsize=(8, 3.5),
+            title='Monthly Revenue Trend',
+            marker='o'
+        )
+
+    plt.gca().spines[['top', 'right']].set_visible(False)
+    plt.ylabel('Revenue (BRL)')
+    plt.xlabel('Month-Year')
+
+        ## Menambahkan anotasi untuk setiap titik
+    for idx, value in enumerate(df_monthly_customer_city['payment_value']):
+            ax.annotate(
+                f'{value:.0f}',
+                xy=(idx, value),
+                xytext=(0, 5),
+                textcoords='offset points',
+                ha='center',
+                fontsize=8
+            )
+
+    plt.tight_layout()
+    st.pyplot(plt)
+    plt.close()
