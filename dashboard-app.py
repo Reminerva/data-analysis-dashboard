@@ -144,6 +144,44 @@ def create_df_sellers_and_customer_merged(pivot_seller: pd.DataFrame,
 
     return df_sellers_merged, df_customer_merged
 
+def create_monthly_summary(df_customer_merged: pd.DataFrame) -> pd.DataFrame:
+
+    ## Ekstrak tahun dan bulan
+    df_test = df_customer_merged.copy()
+    df_test['year_month'] = df_customer_merged['order_purchase_timestamp'].dt.to_period('M')
+
+    ## Kelompokkan berdasarkan year_month dan jumlahkan payment_value_sum
+    monthly_summary = df_test.groupby('year_month')['payment_value_sum'].sum().reset_index()
+
+    ## Ubah kembali year_month ke string (opsional)
+    monthly_summary['year_month'] = monthly_summary['year_month'].astype(str)
+
+    monthly_summary = monthly_summary.drop(index=monthly_summary[monthly_summary['year_month'] == '2018-09'].index)
+
+    return monthly_summary
+
+def create_monthly_transactions(df_order_items: pd.DataFrame) -> pd.DataFrame:
+
+    daily_transactions = df_order_items[df_order_items['order_id'].isin(kelompok_seller)].copy()
+    daily_transactions['shipping_limit_date'] = pd.to_datetime(daily_transactions['shipping_limit_date'])
+
+    ## Ekstrak tahun dan bulan
+    daily_transactions['year_month_day'] = daily_transactions['shipping_limit_date'].dt.to_period('D')
+    daily_transactions = daily_transactions.sort_values(by='year_month_day', ascending=True).reset_index()
+    daily_transactions.drop(columns='index', inplace = True)
+    daily_transactions = daily_transactions.iloc[:-3]
+
+    monthly_transactions = daily_transactions.copy()
+
+    ## Ekstrak tahun dan bulan
+    monthly_transactions['year_month'] = daily_transactions['year_month_day'].dt.to_timestamp().dt.to_period('M')
+
+    ## Kelompokkan berdasarkan year_month dan jumlahkan payment_value_sum
+    monthly_transactions = monthly_transactions.groupby('year_month')['seller_id'].count().reset_index()
+    monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2018-09'].index)
+
+    return monthly_transactions
+
 ### Mendapatkan df_brazil
 def create_df_brazil() -> gpd.GeoDataFrame:
 
@@ -595,19 +633,8 @@ with col1:
 with col2:
 
     # Total Revenue Graphic
+    monthly_summary = create_monthly_summary(df_customer_merged)
 
-    ## Ekstrak tahun dan bulan
-    df_test = df_customer_merged.copy()
-    df_test['year_month'] = df_customer_merged['order_purchase_timestamp'].dt.to_period('M')
-
-    ## Kelompokkan berdasarkan year_month dan jumlahkan payment_value_sum
-    monthly_summary = df_test.groupby('year_month')['payment_value_sum'].sum().reset_index()
-
-    ## Ubah kembali year_month ke string (opsional)
-    monthly_summary['year_month'] = monthly_summary['year_month'].astype(str)
-
-    monthly_summary = monthly_summary.iloc[:-1]
-    
     ## Plotting
     ax = monthly_summary['payment_value_sum'].plot(
         kind='line',
@@ -634,25 +661,8 @@ with col2:
     st.pyplot(plt, clear_figure=True)
 
     # Total Transaksi Graphic
-
-    daily_transactions = df_order_items[df_order_items['order_id'].isin(kelompok_seller)].copy()
-    daily_transactions['shipping_limit_date'] = pd.to_datetime(daily_transactions['shipping_limit_date'])
-
-    ## Ekstrak tahun dan bulan
-    daily_transactions['year_month_day'] = daily_transactions['shipping_limit_date'].dt.to_period('D')
-    daily_transactions = daily_transactions.sort_values(by='year_month_day', ascending=True).reset_index()
-    daily_transactions.drop(columns='index', inplace = True)
-    daily_transactions = daily_transactions.iloc[:-3]
-
-    monthly_transactions = daily_transactions.copy()
-
-    ## Ekstrak tahun dan bulan
-    monthly_transactions['year_month'] = daily_transactions['year_month_day'].dt.to_timestamp().dt.to_period('M')
-
-    ## Kelompokkan berdasarkan year_month dan jumlahkan payment_value_sum
-    monthly_transactions = monthly_transactions.groupby('year_month')['seller_id'].count().reset_index()
-    monthly_transactions = monthly_transactions.iloc[:-1]
-
+    monthly_transactions = create_monthly_transactions(df_order_items)
+    
     ax = monthly_transactions['seller_id'].plot(
         kind='line',
         figsize=(8, 2.5),
@@ -720,7 +730,9 @@ with col2:
                                                         }).sort_values(by = ('price_sum'), ascending = False).head(5)
     df_0 = df_0.sort_values(by = ('price_sum'), ascending = False)
     
-    sns.barplot(y=df_0.index,
+    index_ = [i[:6]+'...' for i in df_0.index]
+
+    sns.barplot(y=index_,
                 x=df_0['price_sum'],
                 data=df_0,
                 palette=colors,
@@ -799,7 +811,9 @@ with col1:
                                                         }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
     df_0 = df_0.sort_values(by = ('payment_value_sum'), ascending = False)
     
-    sns.barplot(y=df_0.index,
+    index_ = [i[:6]+'...' for i in df_0.index]
+
+    sns.barplot(y=index_,
                 x=df_0['payment_value_sum'],
                 data=df_0,
                 palette=colors,
