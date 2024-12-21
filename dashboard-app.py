@@ -169,7 +169,6 @@ def create_monthly_transactions(df_order_items: pd.DataFrame) -> pd.DataFrame:
     daily_transactions['year_month_day'] = daily_transactions['shipping_limit_date'].dt.to_period('D')
     daily_transactions = daily_transactions.sort_values(by='year_month_day', ascending=True).reset_index()
     daily_transactions.drop(columns='index', inplace = True)
-    daily_transactions = daily_transactions.iloc[:-3]
 
     monthly_transactions = daily_transactions.copy()
 
@@ -179,6 +178,8 @@ def create_monthly_transactions(df_order_items: pd.DataFrame) -> pd.DataFrame:
     ## Kelompokkan berdasarkan year_month dan jumlahkan payment_value_sum
     monthly_transactions = monthly_transactions.groupby('year_month')['seller_id'].count().reset_index()
     monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2018-09'].index)
+    monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2020-02'].index)
+    monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2020-04'].index)
 
     return monthly_transactions
 
@@ -619,11 +620,11 @@ with col1:
     # Transaksi
     st.text("Total Transactions")
     kelompok_seller = pd.concat([df_order[df_order['order_status']=='delivered']['order_id'],
-                           df_order[df_order['order_status']=='invoiced']['order_id'],
-                             df_order[df_order['order_status']=='shipped']['order_id'],
-                             df_order[df_order['order_status']=='processing']['order_id'],
-                             df_order[df_order['order_status']=='created']['order_id'],
-                             df_order[df_order['order_status']=='approved']['order_id']])
+                                df_order[df_order['order_status']=='invoiced']['order_id'],
+                                df_order[df_order['order_status']=='shipped']['order_id'],
+                                df_order[df_order['order_status']=='processing']['order_id'],
+                                df_order[df_order['order_status']=='created']['order_id'],
+                                df_order[df_order['order_status']=='approved']['order_id']])
     st.text(f"{len(df_order_items[df_order_items['order_id'].isin(kelompok_seller)].index)} Transactions")
 
     # Active Users
