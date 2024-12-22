@@ -55,6 +55,20 @@ def find_prod(prod_select:int, x:list):
       return True
     else:
       return False
+    
+### Mendapatkan klaster rfm
+def assign_klaster_rfm(data_frame):
+    
+    # Hitung jumlah skor yang lebih dari 3
+    count_high_scores = sum([data_frame['score_freq'] >= 2, data_frame['score_rec'] >= 2, data_frame['score_monet'] > 2])
+
+    # Tentukan klaster berdasarkan jumlah skor tinggi
+    if count_high_scores >= 2:
+        return "Prioritas 1"
+    elif count_high_scores == 1:
+        return "Prioritas 2"
+    else:
+        return "Prioritas 3"
 
 ### Mendapatkan pivot_seller dan pivot_order
 def create_pivot_seller_and_order(df_order_items: pd.DataFrame,
@@ -173,7 +187,7 @@ def create_monthly_summary(df_customer_merged: pd.DataFrame) -> pd.DataFrame:
     return monthly_summary
 
 ### Mendapatkan monthly_transactions
-def create_monthly_transactions(df_order_items: pd.DataFrame) -> pd.DataFrame:
+def create_monthly_transactions(df_order_items: pd.DataFrame) -> tuple:
 
     daily_transactions = df_order_items[df_order_items['order_id'].isin(kelompok_seller)].copy()
     daily_transactions['shipping_limit_date'] = pd.to_datetime(daily_transactions['shipping_limit_date'])
@@ -182,6 +196,10 @@ def create_monthly_transactions(df_order_items: pd.DataFrame) -> pd.DataFrame:
     daily_transactions['year_month_day'] = daily_transactions['shipping_limit_date'].dt.to_period('D')
     daily_transactions = daily_transactions.sort_values(by='year_month_day', ascending=True).reset_index()
     daily_transactions.drop(columns='index', inplace = True)
+
+    daily_transactions = daily_transactions.drop(index=daily_transactions[daily_transactions['year_month_day'] == '2020-02-03'].index)
+    daily_transactions = daily_transactions.drop(index=daily_transactions[daily_transactions['year_month_day'] == '2020-04-09'].index)
+    daily_transactions = daily_transactions.drop(index=daily_transactions[daily_transactions['year_month_day'] == '2020-04-09'].index)
 
     monthly_transactions = daily_transactions.copy()
 
@@ -194,7 +212,7 @@ def create_monthly_transactions(df_order_items: pd.DataFrame) -> pd.DataFrame:
     monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2020-02'].index)
     monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2020-04'].index)
 
-    return monthly_transactions
+    return monthly_transactions, daily_transactions
 
 ### Mendapatkan df_monthly_seller_state
 def create_df_monthly_seller_state(state: str, df_order_items: pd.DataFrame, df_sellers: pd.DataFrame, df_order: pd.DataFrame) -> pd.DataFrame:
@@ -257,6 +275,71 @@ def create_df_monthly_customer_city(city:str, df_order: pd.DataFrame, df_order_p
     df_monthly_customer_city = df_monthly_customer_city.drop(index=df_monthly_customer_city[df_monthly_customer_city.index == '2018-09'].index)
     
     return df_monthly_customer_city
+
+### Mendapatkan rec_pivot_org
+def create_rec_pivot_org(period: int, daily_transactions: pd.DataFrame) -> pd.DataFrame:
+
+    rec = daily_transactions[daily_transactions['year_month_day'] >= daily_transactions['year_month_day'].max() - pd.Timedelta(days=period)][daily_transactions['year_month_day'] <= daily_transactions['year_month_day'].max()]['year_month_day']
+
+    a = rec
+    b = rec.max()
+
+    rec_pivot_org = pd.merge(daily_transactions['order_id'], (b-a), left_index=True, right_index=True)
+    
+    return rec_pivot_org
+
+### Mendapatkan freq_pivot_org
+def create_freq_pivot_org(period: int, daily_transactions: pd.DataFrame) -> pd.DataFrame:
+
+    freq = daily_transactions[daily_transactions['year_month_day'] >= daily_transactions['year_month_day'].max() - pd.Timedelta(days=period)][daily_transactions['year_month_day'] <= daily_transactions['year_month_day'].max()]
+    freq_pivot_org = freq.groupby(by='order_id').agg({'order_item_id': 'count'}).sort_values(by='order_item_id', ascending=False)
+
+    return freq_pivot_org
+
+### Mendapatkan monet_pivot_org
+def create_monet_pivot_org(period: int, df_customer_merged: pd.DataFrame) -> pd.DataFrame:
+
+    monet = df_customer_merged[df_customer_merged['order_purchase_timestamp'] >= df_customer_merged['order_purchase_timestamp'].max() - pd.Timedelta(days=period)][df_customer_merged['order_purchase_timestamp'] <= df_customer_merged['order_purchase_timestamp'].max()][['order_id', 'payment_value_sum','order_purchase_timestamp']].sort_values(by='order_purchase_timestamp', ascending=True)
+    
+    monet_pivot_org = monet[monet['order_purchase_timestamp'] >= monet['order_purchase_timestamp'].max() - pd.Timedelta(days=period)].groupby('order_id').agg({'payment_value_sum': 'sum'})
+    
+    return monet_pivot_org
+
+### Mendapatkan df_rfm
+def create_df_rfm_clustering(rec_pivot_org: pd.DataFrame, freq_pivot_org: pd.DataFrame, monet_pivot_org:pd.DataFrame) -> pd.DataFrame:
+
+    df_rfm = pd.merge(rec_pivot_org, freq_pivot_org, on='order_id')
+    df_rfm = pd.merge(df_rfm, monet_pivot_org, on='order_id')
+
+    df_rfm['year_month_day'] = df_rfm['year_month_day'].astype('str')
+
+    df_rfm['year_month_day'] = df_rfm['year_month_day'].str.replace(r"[<*> Days]", "", regex=True)
+
+    df_rfm['year_month_day'] = pd.to_numeric(df_rfm['year_month_day'], errors='coerce').fillna(0).astype('int64')
+
+    df_rfm['score_freq'] = df_rfm['order_item_id'].apply(lambda x: 3 if x >= 3
+                                                        else (2 if x >= 2
+                                                                else (1 if x >= 0 else 0)))
+
+    df_rfm['score_rec'] = df_rfm['year_month_day'].apply(lambda x: 1 if x >= 26
+                                                        else (2 if x >= 20
+                                                                else (3 if x >= 0 else 0)))
+
+    m = df_rfm['payment_value_sum'].max()/3
+    df_rfm['score_monet'] = df_rfm['payment_value_sum'].apply(lambda x: 5 if x >= 1.75*(m)
+                                            else (4 if x >= 1.25*(m)
+                                                    else (3 if x >= 1*(m)
+                                                        else (2 if (1/2)*(m)
+                                                                else (1 if x >= 0 else 0)))))
+    
+    df_rfm.sort_values(by='order_item_id', ascending=False)
+    
+    df_rfm['klaster_rfm_score'] = df_rfm.apply(assign_klaster_rfm, axis=1)
+    df_rfm = df_rfm.sort_values(by='klaster_rfm_score', ascending=True)
+
+    df_rfm_clustering = df_rfm[['order_id', 'klaster_rfm_score']].drop_duplicates()
+
+    return df_rfm_clustering
 
 ### Mendapatkan df_brazil
 def create_df_brazil() -> gpd.GeoDataFrame:
@@ -694,7 +777,7 @@ with col1:
 
     # Transaksi
     st.text("Total Transactions")
-    st.text(f"{len(df_order_items[df_order_items['order_id'].isin(kelompok_seller)].index)} Transactions")
+    st.text(f"{len(df_order_items_update[df_order_items_update['order_id'].isin(kelompok_seller)].index)} Transactions")
 
     # Active Users
     st.text("Active Users")
@@ -733,7 +816,7 @@ with col2:
     plt.close()
 
     # Total Transaksi Graphic
-    monthly_transactions = create_monthly_transactions(df_order_items)
+    monthly_transactions, daily_transactions = create_monthly_transactions(df_order_items_update)
     
     ax = monthly_transactions['seller_id'].plot(
         kind='line',
@@ -793,7 +876,7 @@ with col1:
     ax.tick_params(axis='x', )
 
     plt.tight_layout()
-    st.pyplot(fig)
+    st.pyplot(plt)
     plt.close()
 
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
@@ -819,7 +902,7 @@ with col1:
     ax.tick_params(axis='x', )
     
     plt.tight_layout()
-    st.pyplot(fig)
+    st.pyplot(plt)
     plt.close()
 
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
@@ -845,7 +928,7 @@ with col1:
     ax.tick_params(axis='x', )
 
     plt.tight_layout()
-    st.pyplot(fig)
+    st.pyplot(plt)
     plt.close()
 
 with col2:
@@ -860,7 +943,7 @@ with col2:
         index=0
     )
 
-    df_monthly_seller_state = create_df_monthly_seller_state(state, df_order_items, df_sellers, df_order)
+    df_monthly_seller_state = create_df_monthly_seller_state(state, df_order_items_update, df_sellers, df_order)
 
     ## Plotting
     ax = df_monthly_seller_state['price'].plot(
@@ -899,7 +982,7 @@ with col2:
         index=0
     )
 
-    df_monthly_seller_city = create_df_monthly_seller_city(city, df_order_items, df_sellers, df_order)
+    df_monthly_seller_city = create_df_monthly_seller_city(city, df_order_items_update, df_sellers, df_order)
 
     ## Plotting
     ax = df_monthly_seller_city['price'].plot(
@@ -961,7 +1044,7 @@ with col1:
     ax.tick_params(axis='x',)
 
     plt.tight_layout()
-    st.pyplot(fig)
+    st.pyplot(plt)
     plt.close()
 
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
@@ -987,7 +1070,7 @@ with col1:
     ax.tick_params(axis='x',)
 
     plt.tight_layout()
-    st.pyplot(fig)
+    st.pyplot(plt)
     plt.close()
 
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
@@ -1013,7 +1096,7 @@ with col1:
     ax.tick_params(axis='x',)
 
     plt.tight_layout()
-    st.pyplot(fig)
+    st.pyplot(plt)
     plt.close()
 
 with col2:
@@ -1028,7 +1111,7 @@ with col2:
         index=0
     )
 
-    df_monthly_customer_state = create_df_monthly_customer_state(state, df_order, df_order_payments, df_customer)
+    df_monthly_customer_state = create_df_monthly_customer_state(state, df_order_update, df_order_payments, df_customer)
     
     ## Plotting
     ax = df_monthly_customer_state['payment_value'].plot(
@@ -1067,7 +1150,7 @@ with col2:
         index=0
     )
 
-    df_monthly_customer_city = create_df_monthly_customer_city(city, df_order, df_order_payments, df_customer)
+    df_monthly_customer_city = create_df_monthly_customer_city(city, df_order_update, df_order_payments, df_customer)
     
     ## Plotting
     ax = df_monthly_customer_city['payment_value'].plot(
@@ -1095,3 +1178,74 @@ with col2:
     plt.tight_layout()
     st.pyplot(plt)
     plt.close()
+
+## RFM Analysis
+st.header('RFM ANALYSIS')
+period = int((st.selectbox(label=f"Select Period: (today: {daily_transactions['year_month_day'].max()})",
+                            options=("30 days ago", "60 days ago", "90 days ago"),
+                            index=0))[:2])
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+
+    st.text("Recency")
+    st.caption("Average")
+    rec_pivot_org = create_rec_pivot_org(period, daily_transactions)
+    
+    recency = int(str(rec_pivot_org['year_month_day'].sum())[1:-8])/rec_pivot_org['year_month_day'].count()
+    
+    st.text(f"{math.floor(recency)} Days ago/Person")
+
+with col2:
+
+    st.text("Frequency")
+    st.caption("Average")
+
+    freq_pivot_org = create_freq_pivot_org(period, daily_transactions)
+
+    freq = math.ceil(freq_pivot_org.sum()/freq_pivot_org.count())
+
+    st.text(f"{freq} Transactions/Person")
+
+with col3:
+
+    st.text("Monetary")
+    st.caption("Average")
+
+    monet_pivot_org = create_monet_pivot_org(period, df_customer_merged)
+
+    monet = math.ceil(monet_pivot_org.sum()/monet_pivot_org.count())
+
+    st.text(f"{monet} BRL/Person")
+
+col1, col2 = st.columns(spec=[0.4,0.6])
+
+with col1:
+    
+    df_rfm_clustering = create_df_rfm_clustering(rec_pivot_org, freq_pivot_org, monet_pivot_org)
+
+    klaster = df_rfm_clustering['klaster_rfm_score'].unique()
+    count = (df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[0]][['order_id', 'klaster_rfm_score']]['order_id'].count(),
+            df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[1]][['order_id', 'klaster_rfm_score']]['order_id'].count(),
+            df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[2]][['order_id', 'klaster_rfm_score']]['order_id'].count(),
+            )
+      
+    colors = ('#C46100', '#EF9234', '#F4B678', '#F9E0A2', '#F4B678', '#EF9234')
+    explode = (0.02, 0.03, 0.05)
+    plt.pie(
+        x=count,
+        labels=klaster,
+        autopct='%1.1f%%',
+        colors=colors,
+        explode=explode,
+        wedgeprops = {'width': 0.5}
+        )
+    plt.title("Klaster Customer Prioritas")
+
+    st.pyplot(plt)
+    plt.close()
+
+with col2:
+
+    st.text("Customer diberi skor 1-5 setiap di setiap metriknya (recency, frequency, monetary)")
