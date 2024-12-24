@@ -19,6 +19,9 @@ df_product = pd.read_csv('data/df_product_clean.csv')
 df_sellers = pd.read_csv('data/df_sellers_clean.csv')
 df_geolocation = pd.read_csv('data/df_geolocation_clean.csv')
 
+# Tertinggal
+df_geolocation.drop(df_geolocation[df_geolocation['geolocation_lat'] <= -35].index, inplace=True)
+
 ## Convert datetime
 df_order['order_purchase_timestamp'] = pd.to_datetime(df_order['order_purchase_timestamp'])
 df_order_items['shipping_limit_date'] = pd.to_datetime(df_order_items['shipping_limit_date'])
@@ -498,28 +501,23 @@ def create_prod_supply_counts(df_geo_point_sel: pd.DataFrame) -> pd.Series:
         all_prod.append(i)
     
     # Membuat Series dari list dan menghitung nilai
-    prod_supply_counts = pd.DataFrame(all_prod).value_counts()
-
-    # st.write(df_geo_point_sel)
+    prod_supply_counts = pd.Series(all_prod).value_counts()
 
     ### Hitung banyaknya seller yang menjual setiap produk
     list_0 = []
     for i in prod_supply_counts.index:
         list_0.append(df_geo_point_sel['seller_id'][
             df_geo_point_sel['product_category_name_<lambda>'].apply(
-                lambda x: find_prod(i[0], x)) == True].count())
-        
-    st.write(list_0)
+                lambda x: find_prod(i, x)) == True].count())
     
-    # prod_supply_counts = prod_supply_counts.apply(lambda x: str(x))
-    # prod_supply_counts.index  = prod_supply_counts.index.str.replace('_', ' ').str.title()
-    # prod_supply_counts['index+count'] = prod_supply_counts.index + ' (' + prod_supply_counts + ' Items)'
+    data = {'index': prod_supply_counts.index, 'count': list_0}
 
-    st.write(prod_supply_counts.index)
+    prod_supply_counts = pd.DataFrame(data)
 
-    # prod_cat_supply_select = prod_cat_supply_select.split('(')[0].strip()
-    # prod_cat_supply_select = prod_cat_supply_select.lower().replace(" ", "_")
+    prod_supply_counts['count'] = prod_supply_counts['count'].apply(lambda x: str(x))
+    prod_supply_counts['index']  = prod_supply_counts['index'].apply(lambda x: (x).replace('_', ' ').title())
 
+    prod_supply_counts['index+count'] = prod_supply_counts['index'] + ' (' + prod_supply_counts['count'] + ' Sellers)'
 
     return prod_supply_counts
 
@@ -1484,6 +1482,7 @@ with col1:
     # Menambahkan judul
     plt.title('Peta Provinsi Brazil', fontsize=15)
 
+    plt.tight_layout()
     st.pyplot(plt)
     plt.close('all')
     
@@ -1505,6 +1504,7 @@ with col1:
     
     plt.title(f'Peta Pembelian {state_map_select_cust} State')
 
+    plt.tight_layout()
     st.pyplot(plt)
     plt.close('all')
 
@@ -1531,6 +1531,7 @@ with col1:
     # Menambahkan judul
     plt.title('Peta Provinsi Brazil', fontsize=15)
 
+    plt.tight_layout()
     st.pyplot(plt)
     plt.close('all')
 
@@ -1559,6 +1560,7 @@ with col2:
     # Menambahkan judul
     plt.title('Peta Provinsi Brazil', fontsize=15)
     
+    plt.tight_layout()
     st.pyplot(plt)
     plt.close('all')
 
@@ -1580,6 +1582,7 @@ with col2:
     
     plt.title(f'Peta Penjual {state_map_select_sel} State')
 
+    plt.tight_layout()
     st.pyplot(plt)
     plt.close('all')
 
@@ -1608,5 +1611,6 @@ with col2:
     # Menambahkan judul
     plt.title('Peta Provinsi Brazil', fontsize=15)
 
+    plt.tight_layout()
     st.pyplot(plt)
     plt.close('all')
