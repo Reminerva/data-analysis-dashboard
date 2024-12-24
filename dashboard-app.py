@@ -8,6 +8,7 @@ import math
 import geopandas as gpd
 from matplotlib.colors import ListedColormap
 import unicodedata
+from shapely.geometry import Point, Polygon
 
 # Import File CSV
 df_customer = pd.read_csv('data/df_customer_clean.csv')
@@ -49,7 +50,7 @@ def remove_accents(input_str):
     return ''.join([char for char in nfkd_form if not unicodedata.combining(char)])
 
 ### Mendapatkan product
-def find_prod(prod_select:int, x:list):
+def find_prod(prod_select:str, x:list):
 
     if prod_select in x:
       return True
@@ -368,16 +369,17 @@ def create_df_brazil() -> gpd.GeoDataFrame:
     # Konversi kembali ke awal
     brazil_df['centroid'] = brazil_df['centroid_crs'].to_crs(epsg=4326)
 
+    brazil_df = brazil_df.sort_values(by='UF', ascending=True).reset_index(drop=True)
+
     return brazil_df
 
 ### Mendapatkan df_cities
-def create_df_cities(brazil_df: gpd.GeoDataFrame, colors: list, state: str) -> gpd.GeoDataFrame:
+def create_df_cities(state: str) -> gpd.GeoDataFrame:
 
     """
     Fungsi ini bertujuan untuk menghasilkan GeoPandas Data Frame df_cities yang berisi peta dari kota-kota pada state(negara) yang dipilih.
 
     Parameters:
-        brazil_df (GeoPandas DataFrame): GeoPandas Data Frame brazil_df
         colors (list): list warna yang digunakan pada peta brazil
         state (str): state yang dipilih oleh user lalu
 
@@ -448,20 +450,8 @@ def create_df_geo_point_sel(df_sellers_merged: pd.DataFrame) -> gpd.GeoDataFrame
 
     return df_geo_point_sel
 
-### Mendapatkan df_product_demand
-def create_df_product_demand(product_index: int, df_geo_point_cust: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-
-    """
-    Fungsi ini bertujuan untuk menghasilkan GeoPandas Data Frame df_product_demand yang berisi poin-poin (letak) product yang diinginkan di peta brazil.
-
-    Parameters:
-        df_geo_point_cust (GeoPandas DataFrame): GeoPandas Data Frame df_geo_point_cust
-        product_index (int): Index dari product yang dipilih
-
-    Returns:
-        gpd.GeoDataFrame (df_product_demand):
-        GeoPandas Data Frame df_product_demand       
-    """
+### Mendapatkan prod_demand_counts
+def create_prod_demand_counts(df_geo_point_cust: pd.DataFrame) -> pd.Series:
 
     all_prod = []
     for li in df_geo_point_cust['product_category_name_<lambda>']:
@@ -471,27 +461,36 @@ def create_df_product_demand(product_index: int, df_geo_point_cust: gpd.GeoDataF
     # Membuat Series dari list dan menghitung nilai
     prod_demand_counts = pd.Series(all_prod).value_counts()
 
-    # Product Category yang dipilih
-    product_demand_select = prod_demand_counts.index[product_index]
+    prod_demand_counts = prod_demand_counts.apply(lambda x: str(x))
+    prod_demand_counts.index  = prod_demand_counts.index.str.replace('_', ' ').str.title()
+    prod_demand_counts['index+count'] = prod_demand_counts.index + ' (' + prod_demand_counts + ' Items)'
 
-    df_product_demand = df_geo_point_cust[df_geo_point_cust['product_category_name_<lambda>'].apply(lambda x: find_prod(product_demand_select, x)) == True]
+    return prod_demand_counts
+
+### Mendapatkan df_product_demand
+def create_df_product_demand(prod_cat_demand_select: str, df_geo_point_cust: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+
+    """
+    Fungsi ini bertujuan untuk menghasilkan GeoPandas Data Frame df_product_demand yang berisi poin-poin (letak) product yang diinginkan di peta brazil.
+
+    Parameters:
+        df_geo_point_cust (GeoPandas DataFrame): GeoPandas Data Frame df_geo_point_cust
+        prod_cat_demand_select (str): Product yang dipilih
+
+    Returns:
+        gpd.GeoDataFrame (df_product_demand):
+        GeoPandas Data Frame df_product_demand       
+    """
+
+    prod_cat_demand_select = prod_cat_demand_select.split('(')[0].strip()
+    prod_cat_demand_select = prod_cat_demand_select.lower().replace(" ", "_")
+
+    df_product_demand = df_geo_point_cust[df_geo_point_cust['product_category_name_<lambda>'].apply(lambda x: find_prod(prod_cat_demand_select, x)) == True]
     
     return df_product_demand
 
-### Mendapatkan df_product_supply
-def create_df_product_supply(product_index: int, df_geo_point_sel: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-
-    """
-    Fungsi ini bertujuan untuk menghasilkan GeoPandas Data Frame df_product_supply yang berisi poin-poin (letak) product yang diinginkan di peta brazil.
-
-    Parameters:
-        df_geo_point_sel (GeoPandas DataFrame): GeoPandas Data Frame df_geo_point_sel
-        product_index (int): Index dari product yang dipilih
-
-    Returns:
-        gpd.GeoDataFrame (df_product_supply):
-        GeoPandas Data Frame df_product_supply       
-    """
+### Mendapatkan prod_demand_counts
+def create_prod_supply_counts(df_geo_point_sel: pd.DataFrame) -> pd.Series:
 
     all_prod = []
     for li in df_geo_point_sel['product_category_name_<lambda>']:
@@ -499,14 +498,66 @@ def create_df_product_supply(product_index: int, df_geo_point_sel: gpd.GeoDataFr
         all_prod.append(i)
     
     # Membuat Series dari list dan menghitung nilai
-    prod_supply_counts = pd.Series(all_prod).value_counts()
+    prod_supply_counts = pd.DataFrame(all_prod).value_counts()
 
-    # Product Category yang dipilih
-    product_supply_select = prod_supply_counts.index[product_index]
+    # st.write(df_geo_point_sel)
 
-    df_product_supply = df_geo_point_sel[df_geo_point_sel['product_category_name_<lambda>'].apply(lambda x: find_prod(product_supply_select, x)) == True]
+    ### Hitung banyaknya seller yang menjual setiap produk
+    list_0 = []
+    for i in prod_supply_counts.index:
+        list_0.append(df_geo_point_sel['seller_id'][
+            df_geo_point_sel['product_category_name_<lambda>'].apply(
+                lambda x: find_prod(i[0], x)) == True].count())
+        
+    st.write(list_0)
+    
+    # prod_supply_counts = prod_supply_counts.apply(lambda x: str(x))
+    # prod_supply_counts.index  = prod_supply_counts.index.str.replace('_', ' ').str.title()
+    # prod_supply_counts['index+count'] = prod_supply_counts.index + ' (' + prod_supply_counts + ' Items)'
+
+    st.write(prod_supply_counts.index)
+
+    # prod_cat_supply_select = prod_cat_supply_select.split('(')[0].strip()
+    # prod_cat_supply_select = prod_cat_supply_select.lower().replace(" ", "_")
+
+
+    return prod_supply_counts
+
+### Mendapatkan df_product_supply
+def create_df_product_supply(prod_cat_supply_select: str, df_geo_point_sel: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+
+    """
+    Fungsi ini bertujuan untuk menghasilkan GeoPandas Data Frame df_product_supply yang berisi poin-poin (letak) product yang diinginkan di peta brazil.
+
+    Parameters:
+        df_geo_point_sel (GeoPandas DataFrame): GeoPandas Data Frame df_geo_point_sel
+        prod_cat_supply_select (str): Index dari product yang dipilih
+
+    Returns:
+        gpd.GeoDataFrame (df_product_supply):
+        GeoPandas Data Frame df_product_supply       
+    """
+
+    prod_cat_supply_select = prod_cat_supply_select.split('(')[0].strip()
+    prod_cat_supply_select = prod_cat_supply_select.lower().replace(" ", "_")
+
+    df_product_supply = df_geo_point_sel[df_geo_point_sel['product_category_name_<lambda>'].apply(lambda x: find_prod(prod_cat_supply_select, x)) == True]
     
     return df_product_supply
+
+### Mendapatkan df_sellers_state_merge
+def create_df_sellers_state_merged(df_sellers_merged: pd.DataFrame) -> pd.DataFrame:
+
+    df_sellers_state_merged = df_sellers_merged.groupby(by='seller_state').agg({
+                                'price_sum': 'sum',
+                                'product_category_name_<lambda>': 'sum',
+                                'seller_id': 'count'
+                                }).sort_values(by = ('price_sum'), ascending = False).head(8)
+
+    df_sellers_state_merged.seller_id = df_sellers_state_merged.seller_id.apply(lambda x: str(x))
+    df_sellers_state_merged['index+id'] = df_sellers_state_merged.index + ' (' + df_sellers_state_merged.seller_id + ' Sellers)'
+
+    return df_sellers_state_merged
 
 ### Mendapatkan df_sellers_city_merged
 def create_df_sellers_city_merged(df_sellers_merged: pd.DataFrame) -> pd.DataFrame:
@@ -560,8 +611,12 @@ def create_df_customer_state_merged(df_customer_merged: pd.DataFrame) -> pd.Data
 
     df_customer_state_merged = df_customer_merged.groupby(by='customer_state').agg({
                                 'payment_value_sum': 'sum',
-                                'product_category_name_<lambda>': 'sum'
+                                'product_category_name_<lambda>': 'sum',
+                                'customer_id': 'count'
                                 }).sort_values(by = ('payment_value_sum'), ascending = False).head(8)
+
+    df_customer_state_merged.customer_id = df_customer_state_merged.customer_id.apply(lambda x: str(x))
+    df_customer_state_merged['index+id'] = df_customer_state_merged.index + ' (' + df_customer_state_merged.customer_id + ' Customers)'
 
     return df_customer_state_merged
 
@@ -749,11 +804,11 @@ brazil_df =  create_df_brazil()
 
 df_geo_point_cust =  create_df_geo_point_cust(df_customer_merged)
 
+prod_demand_counts = create_prod_demand_counts(df_geo_point_cust)
+
 df_geo_point_sel =  create_df_geo_point_sel(df_sellers_merged)
 
-# df_product_demand =  create_df_product_demand(product_index, df_geo_point_cust)
-
-# df_product_supply =  create_df_product_supply(product_index, df_geo_point_sel)
+df_sellers_state_merged = create_df_sellers_state_merged(df_sellers_merged)
 
 df_sellers_city_merged = create_df_sellers_city_merged(df_sellers_merged)
 
@@ -1409,19 +1464,18 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-    st.text("--CUSTOMER SECTION--")
+    st.subheader("--CUSTOMER SECTION--")
 
-    colors_map = [
+    colors_map_cust = [
         "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",  # Primary Colors
         "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
-        "#C0C0C0", "#FF6347", "#FF4500", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
-        "#D2691E", "#B22222", "#228B22", "#FF8C00", "#4B0082", "#ADFF2F",  # More vibrant shades
-        "#FFD700", "#FF69B4", "#8B4513", "#A52A2A", "#FA8072", "#DDA0DD"   # Warm and natural colors
+        "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
+        "#D2691E", "#B22222", "#228B22", "#FF8C00", "#FA8072", "#A52A2A",  # More vibrant shades
+        "#FFD700", "#F900B4", "#8B4513"   # Warm and natural colors
     ]
-
-    # Misalnya, 'provincia' adalah kolom yang menyimpan nama provinsi
+    
     axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-    df_geo_point_cust.plot(ax = axis, column='customer_state',  cmap=ListedColormap(colors_map), markersize = 1.5, legend=True)
+    df_geo_point_cust.sort_values(by='customer_state', ascending=True).plot(ax = axis, column='customer_state',  cmap=ListedColormap(colors_map_cust), markersize = 5, legend=True)
 
     # Menambah label provinsi
     for city, coords in zip(brazil_df.UF, brazil_df.centroid):
@@ -1432,47 +1486,68 @@ with col1:
 
     st.pyplot(plt)
     plt.close('all')
-
-    state_map_select = st.selectbox(
-        label="Choose Customer State:",
-        options=df_customer_state_merged.index,
-        index=0
-    )
-
-    df_cities =  create_df_cities(brazil_df, colors_map, state_map_select)
-    st.write(brazil_df[brazil_df['UF'] == state_map_select]['UF'].index[0])
-    color_ = colors_map[int(brazil_df[brazil_df['UF'] == state_map_select]['UF'].index[0])]
     
-    # state_map_select = st.selectbox(
-    #     label="Choose City:",
-    #     options=(2, 3, 4, 5, 6, 7, 8, 9, 10),
-    #     index=4
-    # )
+    state_map_select_cust = st.selectbox(
+        label="Choose Customer State:",
+        options=df_customer_state_merged['index+id'],
+        index=0
+    )[:2]
+
+    df_cities =  create_df_cities(state_map_select_cust)
+    color_ = colors_map_cust[int(brazil_df.sort_values(by='UF', ascending=True)[brazil_df['UF'] == state_map_select_cust]['UF'].index[0])]
+
+    # Filter, hanya poin-poin yang ada di state yang dipilih saja
+    # df_geo_point_cust = df_geo_point_cust[df_geo_point_cust.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])]
 
     # Plot map
     axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
-    df_geo_point_cust[df_geo_point_cust['customer_state'] == state].plot(ax = axis, color = color_, markersize = 10)
+    df_geo_point_cust[df_geo_point_cust.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
     
-    plt.title(f'Peta Pembelian {state_map_select} State')
+    plt.title(f'Peta Pembelian {state_map_select_cust} State')
+
+    st.pyplot(plt)
+    plt.close('all')
+
+    st.subheader("--PRODUCT DEMAND SECTION--")
+
+    prod_cat_demand_select = st.selectbox(
+        label="Choose Product Category:",
+        options=prod_demand_counts['index+count'],
+        index=0
+    )
+
+    df_product_demand = create_df_product_demand(prod_cat_demand_select, df_geo_point_cust)
+
+    axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
+    df_product_demand.plot(ax = axis, column='customer_state',  cmap=ListedColormap(colors_map_cust), markersize = 5, legend=True)
+
+    # Menambah label provinsi
+    for city, coords in zip(brazil_df.UF, brazil_df.centroid):
+        plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
+
+    # Menambahkan plot titik jika diperlukan
+    # df_product_demand.plot(ax=axis, color='red', markersize=1)
+
+    # Menambahkan judul
+    plt.title('Peta Provinsi Brazil', fontsize=15)
 
     st.pyplot(plt)
     plt.close('all')
 
 with col2:
 
-    st.text("--SELLER SECTION--")
+    st.subheader("--SELLER SECTION--")
 
-    # colors_map = [
-    #     "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",  # Primary Colors
-    #     "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
-    #     "#C0C0C0", "#FF6347", "#FF4500", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
-    #     "#D2691E", "#B22222", "#228B22", "#FF8C00", "#4B0082", "#ADFF2F",  # More vibrant shades
-    #     "#FFD700", "#FF69B4", "#8B4513", "#A52A2A", "#FA8072", "#DDA0DD"   # Warm and natural colors
-    # ]
+    colors_map_sel = [
+        "#FF0000", "#00FF00", "#FF00FF", "#00FFFF",  # Primary Colors
+        "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
+        "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
+        "#D2691E", "#B22222", "#228B22", "#FF8C00", "#A52A2A",  # More vibrant shades
+        "#FFD700", "#F900B4",  # Warm and natural colors
+    ]
 
-    # Misalnya, 'provincia' adalah kolom yang menyimpan nama provinsi
     axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-    df_geo_point_sel.plot(ax = axis, column='seller_state',  cmap=ListedColormap(colors_map), markersize = 1.5, legend=True)
+    df_geo_point_sel.sort_values(by='seller_state', ascending=True).plot(ax = axis, column='seller_state',  cmap=ListedColormap(colors_map_sel), markersize = 5, legend=True)
 
     # Menambah label provinsi
     for city, coords in zip(brazil_df.UF, brazil_df.centroid):
@@ -1487,3 +1562,51 @@ with col2:
     st.pyplot(plt)
     plt.close('all')
 
+    state_map_select_sel = st.selectbox(
+        label="Choose Seller State:",
+        options=df_sellers_state_merged['index+id'],
+        index=0
+    )[:2]
+
+    df_cities =  create_df_cities(state_map_select_sel)
+    color_ = colors_map_cust[int(brazil_df.sort_values(by='UF', ascending=True)[brazil_df['UF'] == state_map_select_sel]['UF'].index[0])]
+
+    # Filter, hanya poin-poin yang ada di state yang dipilih saja
+    # df_geo_point_sel = df_geo_point_sel[df_geo_point_sel.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_sel].geometry.iloc[0])]
+
+    # Plot map
+    axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
+    df_geo_point_sel[df_geo_point_sel.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_sel].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
+    
+    plt.title(f'Peta Penjual {state_map_select_sel} State')
+
+    st.pyplot(plt)
+    plt.close('all')
+
+    st.subheader("--PRODUCT SUPPLY SECTION--")
+
+    prod_supply_counts = create_prod_supply_counts(df_geo_point_sel)
+
+    prod_cat_supply_select = st.selectbox(
+        label="Choose Product Category:",
+        options=prod_supply_counts['index+count'],
+        index=0
+    )
+
+    df_product_supply = create_df_product_supply(prod_cat_supply_select, df_geo_point_sel)
+
+    axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
+    df_product_supply.plot(ax = axis, column='seller_state',  cmap=ListedColormap(colors_map_sel), markersize = 5, legend=True)
+
+    # Menambah label provinsi
+    for city, coords in zip(brazil_df.UF, brazil_df.centroid):
+        plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
+
+    # Menambahkan plot titik jika diperlukan
+    # df_product_supply.plot(ax=axis, color='red', markersize=1)
+
+    # Menambahkan judul
+    plt.title('Peta Provinsi Brazil', fontsize=15)
+
+    st.pyplot(plt)
+    plt.close('all')
