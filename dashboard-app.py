@@ -360,6 +360,7 @@ def create_df_rfm_clustering(period:int, rec_pivot_org: pd.DataFrame, freq_pivot
     return df_rfm_clustering
 
 ### Mendapatkan df_brazil
+@st.cache_resource
 def create_df_brazil() -> gpd.GeoDataFrame:
 
     """
@@ -373,20 +374,20 @@ def create_df_brazil() -> gpd.GeoDataFrame:
     url = "https://raw.githubusercontent.com/luizpedone/municipal-brazilian-geodata/refs/heads/master/data/Brasil.json"
     
     # Membaca file GeoJSON
-    brazil_df = gpd.read_file(url)
+    _brazil_df = gpd.read_file(url)
 
     # Konversi Latitude Longitude ke Meter
-    brazil_df['geometry_crs'] = brazil_df['geometry'].to_crs(epsg=3395)
+    _brazil_df['geometry_crs'] = _brazil_df['geometry'].to_crs(epsg=3395)
   
     # Menghitung centroid untuk setiap geometris (polygon atau multipolygon)
-    brazil_df['centroid_crs'] = brazil_df.geometry_crs.centroid
+    _brazil_df['centroid_crs'] = _brazil_df.geometry_crs.centroid
 
     # Konversi kembali ke awal
-    brazil_df['centroid'] = brazil_df['centroid_crs'].to_crs(epsg=4326)
+    _brazil_df['centroid'] = _brazil_df['centroid_crs'].to_crs(epsg=4326)
 
-    brazil_df = brazil_df.sort_values(by='UF', ascending=True).reset_index(drop=True)
+    _brazil_df = _brazil_df.sort_values(by='UF', ascending=True).reset_index(drop=True)
 
-    return brazil_df
+    return _brazil_df
 
 ### Mendapatkan df_cities
 def create_df_cities(state: str) -> gpd.GeoDataFrame:
@@ -808,22 +809,26 @@ def create_line_chart(data_frame: pd.DataFrame, column_: str, title_: str, ylabe
 
 ##### GRAFIK BAR CHART
 @st.cache_resource
-def create_bar_chart(data_frame: pd.DataFrame, xlabel_: str, ylabel_: str, title_: str, column_: str, colors: list):
+def create_bar_chart(data_frame: pd.DataFrame, 
+                     _index_:list, 
+                     xlabel_: str, 
+                     ylabel_: str, 
+                     title_: str, 
+                     column_: str, 
+                     colors: list,
+                     slicer=3):
 
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
     
-    colors = ["#8F4700", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3"]
 
-    index_ = data_frame.index
+    for i in _index_:
 
-    for i in index_:
+        if len(i) > slicer:
 
-        if len(i) > 3:
-
-            index_ = [j[:3]+'...' for j in data_frame.index]
+            _index_ = [j[:slicer]+'...' for j in _index_]
             break
 
-    sns.barplot(y=index_,
+    sns.barplot(y=_index_,
                 x=data_frame[column_],
                 data=data_frame,
                 palette=colors,
@@ -835,6 +840,8 @@ def create_bar_chart(data_frame: pd.DataFrame, xlabel_: str, ylabel_: str, title
     ax.set_title(title_)
     ax.tick_params(axis='y', )
     ax.tick_params(axis='x', )
+
+    plt.gca().spines[['top', 'right']].set_visible(False)
 
     plt.tight_layout()
     return st.pyplot(plt)
@@ -868,26 +875,43 @@ def create_pie_chart(df_rfm_clustering: pd.DataFrame, title_):
 
     return st.pyplot(plt)
 
-##### Grafik Peta
+##### GRAFIK PETA BRAZIL
 @st.cache_resource
-def create_map(state_map_select_cust, _brazil_df, _df_geo_point_cust, colors_map_cust):
+def create_map_brazil(column_, _brazil_df, _df_geo_point, colors_map):
 
-    df_cities =  create_df_cities(state_map_select_cust)
-    color_ = colors_map_cust[int(_brazil_df.sort_values(by='UF', ascending=True)[_brazil_df['UF'] == state_map_select_cust]['UF'].index[0])]
+    axis = _brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
+    _df_geo_point.sort_values(by=column_, ascending=True).plot(ax = axis, column=column_,  cmap=ListedColormap(colors_map), markersize = 5, legend=True)
 
-    # Filter, hanya poin-poin yang ada di state yang dipilih saja
-    # _df_geo_point_cust = _df_geo_point_cust[_df_geo_point_cust.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])]
+    # Menambah label provinsi
+    for city, coords in zip(_brazil_df.UF, _brazil_df.centroid):
+        plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='black')
 
-    # Plot map
-    axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
-    _df_geo_point_cust[_df_geo_point_cust.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
-    
-    plt.title(f'Peta Pembelian {state_map_select_cust} State')
+    # Menambahkan judul
+    plt.title('Peta Provinsi Brazil', fontsize=15)
 
     plt.tight_layout()
 
     return st.pyplot(plt)
 
+##### GRAFIK PETA STATE
+@st.cache_resource
+def create_map_state(state_map_select, _brazil_df, _df_geo_point, colors_map):
+
+    df_cities =  create_df_cities(state_map_select)
+    color_ = colors_map[int(_brazil_df.sort_values(by='UF', ascending=True)[_brazil_df['UF'] == state_map_select]['UF'].index[0])]
+
+    # Filter, hanya poin-poin yang ada di state yang dipilih saja
+    # _df_geo_point = _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])]
+
+    # Plot map
+    axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
+    _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
+    
+    plt.title(f'Peta Pembelian {state_map_select} State')
+
+    plt.tight_layout()
+
+    return st.pyplot(plt)
 
 ## MEMBUAT FILTER
 min_date = df_order["order_purchase_timestamp"].min()
@@ -1003,25 +1027,28 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-    colors = ["#8F4700", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3"]
+    colors = ["#8F4700", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3",
+              "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3"]
 
     create_bar_chart(df_sellers_state_merged.head(5),
-                    "Total Incomes (Million BRL)",
-                    "State's Name",
-                    "Top 5 Total Incomes by All Sellers in Each State",
-                    'price_sum',
-                    colors
-                    )
+                     df_sellers_state_merged.head(5).index,
+                     "Total Incomes (Million BRL)",
+                     "State's Name",
+                     "Top 5 Total Incomes by All Sellers in Each State",
+                     'price_sum',
+                     colors
+                     )
 
     plt.close('all')
 
     create_bar_chart(df_sellers_city_merged.head(5),
-                    "Total Incomes (Million BRL)",
-                    "City's Name",
-                    "Top 5 Total Incomes by All Sellers in Each City",
-                    'price_sum',
-                    colors
-                    )
+                     df_sellers_state_merged.head(5).index,
+                     "Total Incomes (Million BRL)",
+                     "City's Name",
+                     "Top 5 Total Incomes by All Sellers in Each City",
+                     'price_sum',
+                     colors
+                     )
 
     plt.close('all')
 
@@ -1030,12 +1057,13 @@ with col1:
                                                         }).sort_values(by = ('price_sum'), ascending = False).head(5)
     
     create_bar_chart(df_0,
-                    "Total Incomes (BRL)",
-                    "Seller's ID",
-                    "Top 5 Seller's Total Incomes",
-                    'price_sum',
-                    colors
-                    )
+                     df_0.index,
+                     "Total Incomes (BRL)",
+                     "Seller's ID",
+                     "Top 5 Seller's Total Incomes",
+                     'price_sum',
+                     colors
+                     )
     
     plt.close('all')
 
@@ -1087,22 +1115,24 @@ with col1:
     colors = ["#8F4700", "#D3D3D3","#D3D3D3", "#D3D3D3", "#D3D3D3"]
 
     create_bar_chart(df_customer_state_merged.head(5),
-                    "Total Expenses (Million BRL)",
-                    "State's Name",
-                    "Top 5 Total Expenses by All Customers in Each State",
-                    "payment_value_sum",
-                    colors
-                    )
+                     df_customer_state_merged.head(5).index,
+                     "Total Expenses (Million BRL)",
+                     "State's Name",
+                     "Top 5 Total Expenses by All Customers in Each State",
+                     "payment_value_sum",
+                     colors
+                     )
 
     plt.close('all')
     
     create_bar_chart(df_customer_city_merged.head(5),
-                    "Total Expenses (Million BRL)",
-                    "City's Name",
-                    "Top 5 Total Expenses by All Customers in Each City",
-                    "payment_value_sum",
-                    colors
-                    )
+                     df_customer_city_merged.head(5).index,
+                     "Total Expenses (Million BRL)",
+                     "City's Name",
+                     "Top 5 Total Expenses by All Customers in Each City",
+                     "payment_value_sum",
+                     colors
+                     )
 
     plt.close('all')
     
@@ -1111,12 +1141,13 @@ with col1:
                                                         }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
 
     create_bar_chart(df_0,
-                    "Total Expenses (BRL)",
-                    "Customer's ID",
-                    "Top 5 Total Expenses by All Customers in Each City",
-                    "payment_value_sum",
-                    colors
-                    )
+                     df_0.index,
+                     "Total Expenses (BRL)",
+                     "Customer's ID",
+                     "Top 5 Total Expenses by All Customers in Each City",
+                     "payment_value_sum",
+                     colors
+                     )
 
     plt.close('all')
 
@@ -1240,52 +1271,130 @@ with col1:
         
         penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'] = [i[:12]+'...' for i in penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>']]
         
-        sns.barplot(y=penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
-                    x=penjualan_kategoribarang_di_kota[i][1]['count'],
-                    data=penjualan_kategoribarang_di_kota[i][1],
-                    palette=colors,
-                    ax=ax
-                    )
-                                        
-        ax.set_xlabel("Total Penjualan Barang (Satuan)",)
-        ax.set_ylabel("Kategori Barang",)
-        ax.set_title("Top 10 Penjualan Kategori Barang di"+ " " + penjualan_kategoribarang_di_kota[i][0],)
-        ax.tick_params(axis='y',)
-        ax.tick_params(axis='x',)
+        create_bar_chart(penjualan_kategoribarang_di_kota[i][1],
+                         penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
+                         "Total Penjualan Barang (Satuan)",
+                         "Kategori Barang",
+                         "Top 10 Penjualan Kategori Barang di"+ " " + penjualan_kategoribarang_di_kota[i][0],
+                         'count',
+                         colors,
+                         slicer=5)
 
-        plt.tight_layout()                                                                                                                                 
-        st.pyplot(fig)
         plt.close('all')
 
-# with col2:
+with col2:
     
-#     for i in range (input_kota):
+    for i in range (input_kota):
 
-#         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))    
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))    
             
-#         pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].reset_index().sort_values(by = ('count'), ascending = False)
-#         pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].head(input_barang)
+        pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].reset_index().sort_values(by = ('count'), ascending = False)
+        pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].head(input_barang)
         
-#         pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'] = [i[:12]+'...' for i in pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>']]
-            
-#         sns.barplot(y=pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
-#                     x=pembelian_kategoribarang_di_kota[i][1]['count'],
-#                     data=pembelian_kategoribarang_di_kota[i][1],
-#                     palette=colors,
-#                     ax=ax
-#                     )
-                                        
-#         ax.set_xlabel("Total Pembelian Barang (Satuan)",)
-#         ax.set_ylabel("Kategori Barang",)
-#         ax.set_title("Top 10 Pembelian Kategori Barang di"+ " " + pembelian_kategoribarang_di_kota[i][0],)
-#         ax.tick_params(axis='y',)
-#         ax.tick_params(axis='x',)
+        pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'] = [i[:12]+'...' for i in pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>']]
 
-#         plt.tight_layout()                                                                                                                                 
-#         st.pyplot(fig)
-#         plt.close('all')
+        create_bar_chart(pembelian_kategoribarang_di_kota[i][1],
+                         pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
+                         "Total Pembelian Barang (Satuan)",
+                         "Kategori Barang",
+                         "Top 10 Pembelian Kategori Barang di"+ " " + pembelian_kategoribarang_di_kota[i][0],
+                         'count',
+                         colors,
+                         slicer=5)
 
-## CUSTOMER & SELLER Analysis
+        plt.close('all')
+
+## GEOSPATIAL Analysis
+st.header('GEOSPATIAL ANALYSIS')
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    st.subheader("--CUSTOMER SECTION--")
+
+    colors_map_cust = [
+        "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",  # Primary Colors
+        "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
+        "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
+        "#D2691E", "#B22222", "#228B22", "#FF8C00", "#FA8072", "#A52A2A",  # More vibrant shades
+        "#FFD700", "#F900B4", "#8B4513"   # Warm and natural colors
+    ]
+
+    create_map_brazil('customer_state', brazil_df, df_geo_point_cust, colors_map_cust)
+
+    plt.close('all')
+    
+    state_map_select_cust = st.selectbox(
+        label="Choose Customer State:",
+        options=df_customer_state_merged['index+id'],
+        index=0
+    )[:2]
+
+    create_map_state(state_map_select_cust, brazil_df[['geometry', 'UF']], df_geo_point_cust['geometry'], colors_map_cust)
+
+    plt.close('all')
+
+    st.subheader("--PRODUCT DEMAND SECTION--")
+
+    prod_cat_demand_select = st.selectbox(
+        label="Choose Product Category:",
+        options=prod_demand_counts['index+count'],
+        index=0
+    )
+
+    df_product_demand = create_df_product_demand(prod_cat_demand_select, df_geo_point_cust)
+
+    create_map_brazil('customer_state', brazil_df, df_product_demand, colors_map_cust)
+
+    plt.close('all')
+
+with col2:
+
+    st.subheader("--SELLER SECTION--")
+
+    colors_map_sel = [
+        "#FF0000", "#00FF00", "#FF00FF", "#00FFFF",  # Primary Colors
+        "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
+        "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
+        "#D2691E", "#B22222", "#228B22", "#FF8C00", "#A52A2A",  # More vibrant shades
+        "#FFD700", "#F900B4",  # Warm and natural colors
+    ]
+
+    create_map_brazil('seller_state', brazil_df, df_geo_point_sel, colors_map_sel)
+
+    plt.close('all')
+
+    state_map_select_sel = st.selectbox(
+        label="Choose Seller State:",
+        options=df_sellers_state_merged['index+id'],
+        index=0
+    )[:2]
+
+    create_map_state(state_map_select_sel, brazil_df[['geometry', 'UF']], df_geo_point_sel['geometry'], colors_map_cust)
+
+    plt.close('all')
+
+    st.subheader("--PRODUCT SUPPLY SECTION--")
+
+    prod_supply_counts = create_prod_supply_counts(df_geo_point_sel)
+
+    prod_cat_supply_select = st.selectbox(
+        label="Choose Product Category:",
+        options=prod_supply_counts['index+count'],
+        index=0
+    )
+
+    create_map_brazil('customer_state', brazil_df, df_product_demand, colors_map_cust)
+
+    plt.close('all')
+
+
+
+
+
+
+## CUSTOMER & SELLER Analysis (CLUSTERING)
 # st.header('CUSTOMER & SELLER ANALYSIS')
 
 # col1, col2 = st.columns(2)
@@ -1347,166 +1456,4 @@ with col1:
 
 #     # plt.tight_layout()
 #     st.pyplot(fig)
-#     plt.close('all')
-
-## GEOSPATIAL Analysis
-st.header('GEOSPATIAL ANALYSIS')
-
-col1, col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("--CUSTOMER SECTION--")
-
-    colors_map_cust = [
-        "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",  # Primary Colors
-        "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
-        "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
-        "#D2691E", "#B22222", "#228B22", "#FF8C00", "#FA8072", "#A52A2A",  # More vibrant shades
-        "#FFD700", "#F900B4", "#8B4513"   # Warm and natural colors
-    ]
-    
-    # axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-    # df_geo_point_cust.sort_values(by='customer_state', ascending=True).plot(ax = axis, column='customer_state',  cmap=ListedColormap(colors_map_cust), markersize = 5, legend=True)
-
-    # # Menambah label provinsi
-    # for city, coords in zip(brazil_df.UF, brazil_df.centroid):
-    #     plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
-
-    # # Menambahkan judul
-    # plt.title('Peta Provinsi Brazil', fontsize=15)
-
-    # plt.tight_layout()
-    # st.pyplot(plt)
-    # plt.close('all')
-    
-    state_map_select_cust = st.selectbox(
-        label="Choose Customer State:",
-        options=df_customer_state_merged['index+id'],
-        index=0
-    )[:2]
-
-    create_map(state_map_select_cust, brazil_df[['geometry', 'UF']], df_geo_point_cust['geometry'], colors_map_cust)
-
-    # df_cities =  create_df_cities(state_map_select_cust)
-    # color_ = colors_map_cust[int(brazil_df.sort_values(by='UF', ascending=True)[brazil_df['UF'] == state_map_select_cust]['UF'].index[0])]
-
-    # # Filter, hanya poin-poin yang ada di state yang dipilih saja
-    # # df_geo_point_cust = df_geo_point_cust[df_geo_point_cust.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])]
-
-    # # Plot map
-    # axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
-    # df_geo_point_cust[df_geo_point_cust.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
-    
-    # plt.title(f'Peta Pembelian {state_map_select_cust} State')
-
-    # plt.tight_layout()
-    # st.pyplot(plt)
-    plt.close('all')
-
-    st.subheader("--PRODUCT DEMAND SECTION--")
-
-    prod_cat_demand_select = st.selectbox(
-        label="Choose Product Category:",
-        options=prod_demand_counts['index+count'],
-        index=0
-    )
-
-    df_product_demand = create_df_product_demand(prod_cat_demand_select, df_geo_point_cust)
-
-#     axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-#     df_product_demand.plot(ax = axis, column='customer_state',  cmap=ListedColormap(colors_map_cust), markersize = 5, legend=True)
-
-#     # Menambah label provinsi
-#     for city, coords in zip(brazil_df.UF, brazil_df.centroid):
-#         plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
-
-#     # Menambahkan plot titik jika diperlukan
-#     # df_product_demand.plot(ax=axis, color='red', markersize=1)
-
-#     # Menambahkan judul
-#     plt.title('Peta Provinsi Brazil', fontsize=15)
-
-#     plt.tight_layout()
-#     st.pyplot(plt)
-#     plt.close('all')
-
-# with col2:
-
-#     st.subheader("--SELLER SECTION--")
-
-#     colors_map_sel = [
-#         "#FF0000", "#00FF00", "#FF00FF", "#00FFFF",  # Primary Colors
-#         "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
-#         "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
-#         "#D2691E", "#B22222", "#228B22", "#FF8C00", "#A52A2A",  # More vibrant shades
-#         "#FFD700", "#F900B4",  # Warm and natural colors
-#     ]
-
-#     axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-#     df_geo_point_sel.sort_values(by='seller_state', ascending=True).plot(ax = axis, column='seller_state',  cmap=ListedColormap(colors_map_sel), markersize = 5, legend=True)
-
-#     # Menambah label provinsi
-#     for city, coords in zip(brazil_df.UF, brazil_df.centroid):
-#         plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
-
-#     # Menambahkan plot titik jika diperlukan
-#     # df_geo_point_sel.plot(ax=axis, color='red', markersize=1)
-
-#     # Menambahkan judul
-#     plt.title('Peta Provinsi Brazil', fontsize=15)
-    
-#     plt.tight_layout()
-#     st.pyplot(plt)
-#     plt.close('all')
-
-#     state_map_select_sel = st.selectbox(
-#         label="Choose Seller State:",
-#         options=df_sellers_state_merged['index+id'],
-#         index=0
-#     )[:2]
-
-#     df_cities =  create_df_cities(state_map_select_sel)
-#     color_ = colors_map_cust[int(brazil_df.sort_values(by='UF', ascending=True)[brazil_df['UF'] == state_map_select_sel]['UF'].index[0])]
-
-#     # Filter, hanya poin-poin yang ada di state yang dipilih saja
-#     # df_geo_point_sel = df_geo_point_sel[df_geo_point_sel.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_sel].geometry.iloc[0])]
-
-#     # Plot map
-#     axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
-#     df_geo_point_sel[df_geo_point_sel.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_sel].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
-    
-#     plt.title(f'Peta Penjual {state_map_select_sel} State')
-
-#     plt.tight_layout()
-#     st.pyplot(plt)
-#     plt.close('all')
-
-#     st.subheader("--PRODUCT SUPPLY SECTION--")
-
-#     prod_supply_counts = create_prod_supply_counts(df_geo_point_sel)
-
-#     prod_cat_supply_select = st.selectbox(
-#         label="Choose Product Category:",
-#         options=prod_supply_counts['index+count'],
-#         index=0
-#     )
-
-#     df_product_supply = create_df_product_supply(prod_cat_supply_select, df_geo_point_sel)
-
-#     axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-#     df_product_supply.plot(ax = axis, column='seller_state',  cmap=ListedColormap(colors_map_sel), markersize = 5, legend=True)
-
-#     # Menambah label provinsi
-#     for city, coords in zip(brazil_df.UF, brazil_df.centroid):
-#         plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
-
-#     # Menambahkan plot titik jika diperlukan
-#     # df_product_supply.plot(ax=axis, color='red', markersize=1)
-
-#     # Menambahkan judul
-#     plt.title('Peta Provinsi Brazil', fontsize=15)
-
-#     plt.tight_layout()
-#     st.pyplot(plt)
 #     plt.close('all')
