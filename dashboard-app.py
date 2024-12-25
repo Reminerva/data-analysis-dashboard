@@ -787,6 +787,7 @@ def create_line_chart(data_frame: pd.DataFrame, column_: str, title_: str, ylabe
         figsize=(8, 3.5),
         title=title_,
         marker='o',
+        color= '#7e74f1'
     )
 
     plt.gca().spines[['top', 'right']].set_visible(False)
@@ -856,8 +857,8 @@ def create_pie_chart(df_rfm_clustering: pd.DataFrame, title_):
              df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[2]]['order_id'].count(),
              )
       
-    colors = ('#C46100', '#EF9234', '#F4B678', '#F9E0A2', '#F4B678', '#EF9234')
-    explode = (0.02, 0.03, 0.05)
+    colors = ("#03DAC6", "#7e74f1", "#5d51e8")
+    explode = (0.07, 0.03, 0.05)
 
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
 
@@ -1027,8 +1028,8 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-    colors = ["#8F4700", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3",
-              "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3"]
+    colors = ["#7e74f1", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE",
+              "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE"]
 
     create_bar_chart(df_sellers_state_merged.head(5),
                      df_sellers_state_merged.head(5).index,
@@ -1112,7 +1113,8 @@ with col1:
     # st.markdown("<p> </p>", unsafe_allow_html=True)
     # st.markdown("<p> </p>", unsafe_allow_html=True)
 
-    colors = ["#8F4700", "#D3D3D3","#D3D3D3", "#D3D3D3", "#D3D3D3"]
+    colors = ["#7e74f1", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE",
+              "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE"]
 
     create_bar_chart(df_customer_state_merged.head(5),
                      df_customer_state_merged.head(5).index,
@@ -1257,8 +1259,8 @@ input_barang = st.selectbox(
 
 col1, col2 = st.columns(2)
 
-colors = ["#8F4700", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3",
-          "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3"]
+colors = ["#7e74f1", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE",
+          "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE"]
 
 with col1:
     
