@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
+from matplotlib import rcParams
 import seaborn as sns
 import streamlit as st
 from babel.numbers import format_currency
@@ -8,17 +10,37 @@ import math
 import geopandas as gpd
 from matplotlib.colors import ListedColormap
 import unicodedata
-from shapely.geometry import Point, Polygon
+import requests
+import tempfile
 
 ############# STYLING #############
+# Font untuk matplotlib
+font_url = 'https://reminerva.github.io/royal-avenue-demo.ttf'
+
+# Unduh font ke file sementara
+response = requests.get(font_url)
+with tempfile.NamedTemporaryFile(delete=False, suffix='.ttf') as temp_font_file:
+    temp_font_file.write(response.content)
+    temp_font_path = temp_font_file.name  # Path ke file sementara
+
+# Load font custom
+custom_font = font_manager.FontProperties(fname=temp_font_path)
+
+# Set font sebagai default
+rcParams['font.family'] = custom_font.get_name()
+
 st.html("""
         
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
         
         @font-face {
-            font-family: 'Source Sans Pro'; 
-            src: url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');; 
+        font-family: "Source Sans Pro";
+        src: url('https://reminerva.github.io/royal-avenue-demo.ttf') format("truetype");
+        }
+        @font-face {
+        font-family: "Royal Avenue";
+        src: url('https://reminerva.github.io/royal-avenue-demo.ttf') format("truetype");
         }
 
         [data-testid="stMetric"] {
@@ -38,6 +60,7 @@ st.html("""
         }
 
         h4 {
+            font-family: Royal Avenue;
             text-align: center;
             padding: 1rem 0;
             font-size: 1.5rem;
@@ -48,6 +71,7 @@ st.html("""
         }
 
         h5 {
+            font-family: Royal Avenue;
             text-align: center;
             padding: .5rem 0;
             font-size: 1.25rem;
@@ -843,14 +867,16 @@ def create_line_chart(data_frame: pd.DataFrame, column_: str, title_: str, ylabe
     ax = data_frame[column_].plot(
         kind='line',
         figsize=(8, 3.5),
-        title=title_,
         marker='o',
-        color= '#7e74f1'
+        color= '#7e74f1',
     )
 
     plt.gca().spines[['top', 'right']].set_visible(False)
-    plt.ylabel(ylabel_)
-    plt.xlabel('Month-Year')
+    plt.title(title_, fontproperties=custom_font)
+    plt.ylabel(ylabel_, fontproperties=custom_font)
+    plt.xlabel('Month-Year', fontproperties=custom_font)
+    plt.tick_params(axis='y')
+    plt.tick_params(axis='x')
 
     ## Menambahkan anotasi untuk setiap titik
     for idx, value in enumerate(data_frame[column_]):
@@ -860,8 +886,18 @@ def create_line_chart(data_frame: pd.DataFrame, column_: str, title_: str, ylabe
             xytext=(0, 5),
             textcoords='offset points',
             ha='center',
-            fontsize=8
+            fontsize=8,
         )
+
+    # Mengatur font pada tick labels
+    for label in ax.get_xmajorticklabels():
+        (label.set_fontproperties(custom_font))
+
+    for label in ax.get_xminorticklabels():
+        (label.set_fontproperties(custom_font))
+
+    for label in ax.get_yticklabels():
+        label.set_fontproperties(custom_font)
 
     plt.tight_layout()
     return st.pyplot(plt, clear_figure=True)
@@ -894,9 +930,9 @@ def create_bar_chart(data_frame: pd.DataFrame,
                 ax=ax
                 )
                 
-    ax.set_xlabel(xlabel_)
-    ax.set_ylabel(ylabel_)
-    ax.set_title(title_)
+    ax.set_xlabel(xlabel_, fontproperties=custom_font)
+    ax.set_ylabel(ylabel_, fontproperties=custom_font)
+    ax.set_title(title_, fontproperties=custom_font)
     ax.tick_params(axis='y', )
     ax.tick_params(axis='x', )
 
@@ -927,9 +963,10 @@ def create_pie_chart(df_rfm_clustering: pd.DataFrame, title_):
         colors=colors,
         explode=explode,
         wedgeprops = {'width': 0.5},
+        textprops={'fontproperties': custom_font}
         )
 
-    plt.title(title_)
+    plt.title(title_, fontproperties=custom_font)
     plt.tight_layout()
 
     return st.pyplot(plt)
@@ -946,7 +983,7 @@ def create_map_brazil(column_, _brazil_df, _df_geo_point, colors_map):
         plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='black')
 
     # Menambahkan judul
-    plt.title('Peta Provinsi Brazil', fontsize=15)
+    plt.title('Peta Provinsi Brazil', fontsize=15,fontproperties=custom_font)
 
     plt.tight_layout()
 
@@ -966,7 +1003,7 @@ def create_map_state(state_map_select, _brazil_df, _df_geo_point, colors_map):
     axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
     _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
     
-    plt.title(f'Peta Pembelian {state_map_select} State')
+    plt.title(f'Peta Pembelian {state_map_select} State', fontproperties=custom_font)
 
     plt.tight_layout()
 
