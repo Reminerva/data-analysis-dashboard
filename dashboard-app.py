@@ -15,7 +15,7 @@ import tempfile
 
 ############# STYLING #############
 # Font untuk matplotlib
-font_url = 'https://reminerva.github.io/royal-avenue-demo.ttf'
+font_url = 'https://reminerva.github.io/Roboto-Medium.ttf'
 
 # Unduh font ke file sementara
 response = requests.get(font_url)
@@ -28,6 +28,8 @@ custom_font = font_manager.FontProperties(fname=temp_font_path)
 
 # Set font sebagai default
 rcParams['font.family'] = custom_font.get_name()
+st.write(rcParams['font.family'])
+st.write(custom_font.get_name())
 
 st.html("""
         
@@ -36,11 +38,11 @@ st.html("""
         
         @font-face {
         font-family: "Source Sans Pro";
-        src: url('https://reminerva.github.io/royal-avenue-demo.ttf') format("truetype");
+        src: url('https://reminerva.github.io/Roboto-Medium.ttf') format("truetype");
         }
         @font-face {
-        font-family: "Royal Avenue";
-        src: url('https://reminerva.github.io/royal-avenue-demo.ttf') format("truetype");
+        font-family: "Roboto";
+        src: url('https://reminerva.github.io/Roboto-Medium.ttf') format("truetype");
         }
 
         [data-testid="stMetric"] {
@@ -60,7 +62,7 @@ st.html("""
         }
 
         h4 {
-            font-family: Royal Avenue;
+            font-family: Roboto;
             text-align: center;
             padding: 1rem 0;
             font-size: 1.5rem;
@@ -71,7 +73,7 @@ st.html("""
         }
 
         h5 {
-            font-family: Royal Avenue;
+            font-family: Roboto;
             text-align: center;
             padding: .5rem 0;
             font-size: 1.25rem;
@@ -936,6 +938,16 @@ def create_bar_chart(data_frame: pd.DataFrame,
     ax.tick_params(axis='y', )
     ax.tick_params(axis='x', )
 
+        # Mengatur font pada tick labels
+    for label in ax.get_xmajorticklabels():
+        (label.set_fontproperties(custom_font))
+
+    for label in ax.get_xminorticklabels():
+        (label.set_fontproperties(custom_font))
+
+    for label in ax.get_yticklabels():
+        label.set_fontproperties(custom_font)
+
     plt.gca().spines[['top', 'right']].set_visible(False)
 
     plt.tight_layout()
@@ -975,19 +987,59 @@ def create_pie_chart(df_rfm_clustering: pd.DataFrame, title_):
 @st.cache_resource
 def create_map_brazil(column_, _brazil_df, _df_geo_point, colors_map):
 
-    axis = _brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
+    axis = _brazil_df.plot(color = 'white', edgecolor='black', figsize=(10, 15))
     _df_geo_point.sort_values(by=column_, ascending=True).plot(ax = axis, column=column_,  cmap=ListedColormap(colors_map), markersize = 5, legend=True)
 
     # Menambah label provinsi
     for city, coords in zip(_brazil_df.UF, _brazil_df.centroid):
-        plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='black')
+        plt.text(coords.x, coords.y, city, fontsize=15, ha='center', color='black', fontproperties=custom_font)
 
     # Menambahkan judul
-    plt.title('Peta Provinsi Brazil', fontsize=15,fontproperties=custom_font)
+    plt.title('Brazil Map', fontsize=25,fontproperties=custom_font)
 
     plt.tight_layout()
 
-    return st.pyplot(plt)
+    return st.pyplot(plt, clear_figure=True)
+
+##### GRAFIK PETA BRAZIL PRODUCT DEMAND
+@st.cache_resource
+def create_map_brazil_product_dem(column_, _brazil_df, prod_cat_demand_select, _df_geo_point_cust, colors_map):
+
+    _df_geo_point = create_df_product_demand(prod_cat_demand_select, _df_geo_point_cust)
+
+    axis = _brazil_df.plot(color = 'white', edgecolor='black', figsize=(10, 15))
+    _df_geo_point.sort_values(by=column_, ascending=True).plot(ax = axis, column=column_,  cmap=ListedColormap(colors_map), markersize = 5, legend=True)
+
+    # Menambah label provinsi
+    for city, coords in zip(_brazil_df.UF, _brazil_df.centroid):
+        plt.text(coords.x, coords.y, city, fontsize=15, ha='center', color='black', fontproperties=custom_font)
+
+    # Menambahkan judul
+    plt.title('Peta Provinsi Brazil', fontsize=25,fontproperties=custom_font)
+
+    plt.tight_layout()
+
+    return st.pyplot(plt, clear_figure=True)
+
+##### GRAFIK PETA BRAZIL PRODUCT SUPPLY
+@st.cache_resource
+def create_map_brazil_product_sup(column_, _brazil_df, prod_cat_supply_select, _df_geo_point_cust, colors_map):
+
+    _df_geo_point = create_df_product_supply(prod_cat_supply_select, _df_geo_point_cust)
+
+    axis = _brazil_df.plot(color = 'white', edgecolor='black', figsize=(10, 15))
+    _df_geo_point.sort_values(by=column_, ascending=True).plot(ax = axis, column=column_,  cmap=ListedColormap(colors_map), markersize = 5, legend=True)
+
+    # Menambah label provinsi
+    for city, coords in zip(_brazil_df.UF, _brazil_df.centroid):
+        plt.text(coords.x, coords.y, city, fontsize=15, ha='center', color='black', fontproperties=custom_font)
+
+    # Menambahkan judul
+    plt.title('Peta Provinsi Brazil', fontsize=25,fontproperties=custom_font)
+
+    plt.tight_layout()
+
+    return st.pyplot(plt, clear_figure=True)
 
 ##### GRAFIK PETA STATE
 @st.cache_resource
@@ -1003,11 +1055,11 @@ def create_map_state(state_map_select, _brazil_df, _df_geo_point, colors_map):
     axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
     _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
     
-    plt.title(f'Peta Pembelian {state_map_select} State', fontproperties=custom_font)
+    plt.title(f'{state_map_select} State Map', fontproperties=custom_font, fontsize=15)
 
     plt.tight_layout()
 
-    return st.pyplot(plt)
+    return st.pyplot(plt, clear_figure=True)
 
 ## MEMBUAT FILTER
 min_date = df_order["order_purchase_timestamp"].min()
@@ -1444,9 +1496,9 @@ with col1:
         index=0
     )
 
-    df_product_demand = create_df_product_demand(prod_cat_demand_select, df_geo_point_cust)
+    # df_product_demand = create_df_product_demand(prod_cat_demand_select, df_geo_point_cust)
 
-    create_map_brazil('customer_state', brazil_df, df_product_demand, colors_map_cust)
+    create_map_brazil_product_dem('customer_state', brazil_df, prod_cat_demand_select, df_geo_point_cust, colors_map_cust)
 
     plt.close('all')
 
@@ -1486,7 +1538,7 @@ with col2:
         index=0
     )
 
-    create_map_brazil('customer_state', brazil_df, df_product_demand, colors_map_cust)
+    create_map_brazil_product_sup('seller_state', brazil_df, prod_cat_supply_select, df_geo_point_sel, colors_map_cust)
 
     plt.close('all')
 
