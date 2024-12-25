@@ -10,6 +10,56 @@ from matplotlib.colors import ListedColormap
 import unicodedata
 from shapely.geometry import Point, Polygon
 
+############# STYLING #############
+st.html("""
+        
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+        
+        @font-face {
+            font-family: 'Source Sans Pro'; 
+            src: url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');; 
+        }
+
+        [data-testid="stMetric"] {
+            background-color: #FFF;
+            text-align: center;
+            align-content: auto;
+        }
+
+        [data-testid="stMetricLabel"] {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        [data-testid="stMetricValue"] {
+            font-size: 1.5rem;
+        }
+
+        h4 {
+            text-align: center;
+            padding: 1rem 0;
+            font-size: 1.5rem;
+        }
+
+        h4 span {
+            color: #7e74f1
+        }
+
+        h5 {
+            text-align: center;
+            padding: .5rem 0;
+            font-size: 1.25rem;
+        }
+
+        h5 span {
+            color: #7e74f1
+        }
+
+        </style>
+        """)
+
 # Import File CSV
 df_customer = pd.read_csv('data/df_customer_clean.csv')
 df_order = pd.read_csv('data/df_order_clean.csv')
@@ -73,6 +123,14 @@ def assign_klaster_rfm(data_frame):
         return "Prioritas 2"
     else:
         return "Prioritas 3"
+
+### Convert number ke teks 
+def format_number(num):
+    if num > 1000000:
+        if not num % 1000000:
+            return f'{num // 1000000} M'
+        return f'{round(num / 1000000, 1)} M'
+    return f'{num // 1000} K'
 
 ### Mendapatkan pivot_seller dan pivot_order
 @st.cache_data
@@ -985,22 +1043,30 @@ pembelian_kategoribarang_di_kota = return_kategori_di_kota_jual(df_customer_city
 plt.style.use('default')
 
 ## OVERVIEW
-st.header('OVERVIEW')
+st.html('<h4><span>OVERVIEW</span></h4>')
 col1, col2 = st.columns(border=True, spec=[0.4, 0.6])
 
 with col1:
 
     # Revenue
-    st.text("Total Revenue E-Commerce")
-    st.text(f"{df_customer_merged['payment_value_sum'].sum()} BRL")
-
+    value_ = format_number(df_customer_merged['payment_value_sum'].sum())
+    st.metric(label=("Total Revenue"),
+              value=(f"{value_} BRL"))
+    
     # Transaksi
-    st.text("Total Transactions")
-    st.text(f"{len(df_order_items_update[df_order_items_update['order_id'].isin(kelompok_seller)].index)} Transactions")
-
+    value_ = format_number(len(df_order_items_update[df_order_items_update['order_id'].isin(kelompok_seller)].index))
+    st.metric(label="Total Transactions",
+              value=(f"{value_} Transactions"))
+    
     # Active Users
-    st.text("Active Users")
-    st.text(f"{df_customer_merged['customer_id'].iloc[:-1].nunique()} Users")
+    value_ = format_number(df_customer_merged['customer_id'].iloc[:-1].nunique())
+    st.metric(label="Active Users",
+              value=(f"{value_} Users"))
+    
+    # Active Sellers
+    value_ = format_number(df_sellers_merged['seller_id'].nunique())
+    st.metric(label="Active Sellers",
+              value=(f"{value_} Sellers"))
         
 with col2:
 
@@ -1018,12 +1084,8 @@ with col2:
     
     plt.close('all')
 
-    # Active Sellers
-    st.text("Active Sellers")
-    st.text(f"{df_sellers_merged['seller_id'].nunique()} Sellers")
-
 ## Sales Analysis
-st.header('SALES ANALYSIS')
+st.html('<h4><span>SALES </span>ANALYSIS</h4>')
 col1, col2 = st.columns(2)
 
 with col1:
@@ -1103,7 +1165,7 @@ with col2:
     plt.close('all')
 
 ## Customer Analysis
-st.header('CUSTOMER ANALYSIS')
+st.html('<h4><span>CUSTOMER </span>ANALYSIS</h4>')
 col1, col2 = st.columns(2)
 
 with col1:
@@ -1188,7 +1250,7 @@ with col2:
     plt.close('all')
 
 ## RFM Analysis
-st.header('RFM ANALYSIS')
+st.html('<h4><span>RFM </span>ANALYSIS</h4>')
 period = int((st.selectbox(label=f"Select Period: (today: {daily_transactions['year_month_day'].max()})",
                             options=("30 days ago", "60 days ago", "90 days ago"),
                             index=0))[:2])
@@ -1243,7 +1305,7 @@ with col2:
     st.text("blablablablabla")
 
 ## PRODUCT Analysis
-st.header('PRODUCT ANALYSIS')
+st.html('<h4><span>PRODUCT </span>ANALYSIS</h4>')
 
 input_kota = st.selectbox(
     label="Berapa kota yang ditampilkan?",
@@ -1307,13 +1369,13 @@ with col2:
         plt.close('all')
 
 ## GEOSPATIAL Analysis
-st.header('GEOSPATIAL ANALYSIS')
+st.html('<h4><span>GEOSPATIAL </span>ANALYSIS</h4>')
 
 col1, col2 = st.columns(2)
 
 with col1:
 
-    st.subheader("--CUSTOMER SECTION--")
+    st.html('<h5><span>CUSTOMER </span>SECTION</h5>')
 
     colors_map_cust = [
         "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",  # Primary Colors
@@ -1337,7 +1399,7 @@ with col1:
 
     plt.close('all')
 
-    st.subheader("--PRODUCT DEMAND SECTION--")
+    st.html('<h5>PRODUCT<span> DEMAND </span>SECTION</h5>')
 
     prod_cat_demand_select = st.selectbox(
         label="Choose Product Category:",
@@ -1353,7 +1415,7 @@ with col1:
 
 with col2:
 
-    st.subheader("--SELLER SECTION--")
+    st.html('<h5><span>SELLER </span>SECTION</h5>')
 
     colors_map_sel = [
         "#FF0000", "#00FF00", "#FF00FF", "#00FFFF",  # Primary Colors
@@ -1377,7 +1439,7 @@ with col2:
 
     plt.close('all')
 
-    st.subheader("--PRODUCT SUPPLY SECTION--")
+    st.html('<h5>PRODUCT<span> SUPPLY </span>SECTION</h5>')
 
     prod_supply_counts = create_prod_supply_counts(df_geo_point_sel)
 
@@ -1396,8 +1458,11 @@ with col2:
 
 
 
+
+
+
 ## CUSTOMER & SELLER Analysis (CLUSTERING)
-# st.header('CUSTOMER & SELLER ANALYSIS')
+# st.markdown('#### CUSTOMER & SELLER ANALYSIS')
 
 # col1, col2 = st.columns(2)
 
