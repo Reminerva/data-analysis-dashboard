@@ -75,6 +75,7 @@ def assign_klaster_rfm(data_frame):
         return "Prioritas 3"
 
 ### Mendapatkan pivot_seller dan pivot_order
+@st.cache_data
 def create_pivot_seller_and_order(df_order_items: pd.DataFrame,
                                   df_product: pd.DataFrame,
                                   df_order_payments: pd.DataFrame,
@@ -131,6 +132,7 @@ def create_pivot_seller_and_order(df_order_items: pd.DataFrame,
     return create_pivot_seller(df_order_items, df_product), create_pivot_order(df_order_payments, df_order)
 
 ### Mendapatkan df_sellers_merged dan df_customer_merged
+@st.cache_data
 def create_df_sellers_and_customer_merged(pivot_seller: pd.DataFrame,
                                           df_sellers: pd.DataFrame,
                                           pivot_order: pd.DataFrame,
@@ -183,10 +185,14 @@ def create_monthly_summary(df_customer_merged: pd.DataFrame) -> pd.DataFrame:
     ## Kelompokkan berdasarkan year_month dan jumlahkan payment_value_sum
     monthly_summary = df_test.groupby('year_month')['payment_value_sum'].sum().reset_index()
 
-    ## Ubah kembali year_month ke string (opsional)
-    monthly_summary['year_month'] = monthly_summary['year_month'].astype(str)
+    # ## Ubah kembali year_month ke string (opsional)
+    # monthly_summary['year_month'] = monthly_summary['year_month'].astype(str)
+    # monthly_summary['year_month'] = pd.to_datetime(monthly_summary['year_month'])
+    # monthly_summary['year_month'] = (monthly_summary['year_month']).dt.to_period('M')
 
     monthly_summary = monthly_summary.drop(index=monthly_summary[monthly_summary['year_month'] == '2018-09'].index)
+
+    monthly_summary = monthly_summary.set_index('year_month')
 
     return monthly_summary
 
@@ -215,6 +221,8 @@ def create_monthly_transactions(df_order_items: pd.DataFrame) -> tuple:
     monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2018-09'].index)
     monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2020-02'].index)
     monthly_transactions = monthly_transactions.drop(index=monthly_transactions[monthly_transactions['year_month'] == '2020-04'].index)
+
+    monthly_transactions = monthly_transactions.set_index('year_month')
 
     return monthly_transactions, daily_transactions
 
@@ -281,6 +289,7 @@ def create_df_monthly_customer_city(city:str, df_order: pd.DataFrame, df_order_p
     return df_monthly_customer_city
 
 ### Mendapatkan rec_pivot_org
+@st.cache_data
 def create_rec_pivot_org(period: int, daily_transactions: pd.DataFrame) -> pd.DataFrame:
 
     rec = daily_transactions[daily_transactions['year_month_day'] >= daily_transactions['year_month_day'].max() - pd.Timedelta(days=period)][daily_transactions['year_month_day'] <= daily_transactions['year_month_day'].max()]['year_month_day']
@@ -293,6 +302,7 @@ def create_rec_pivot_org(period: int, daily_transactions: pd.DataFrame) -> pd.Da
     return rec_pivot_org
 
 ### Mendapatkan freq_pivot_org
+@st.cache_data
 def create_freq_pivot_org(period: int, daily_transactions: pd.DataFrame) -> pd.DataFrame:
 
     freq = daily_transactions[daily_transactions['year_month_day'] >= daily_transactions['year_month_day'].max() - pd.Timedelta(days=period)][daily_transactions['year_month_day'] <= daily_transactions['year_month_day'].max()]
@@ -301,6 +311,7 @@ def create_freq_pivot_org(period: int, daily_transactions: pd.DataFrame) -> pd.D
     return freq_pivot_org
 
 ### Mendapatkan monet_pivot_org
+@st.cache_data
 def create_monet_pivot_org(period: int, df_customer_merged: pd.DataFrame) -> pd.DataFrame:
 
     monet = df_customer_merged[df_customer_merged['order_purchase_timestamp'] >= df_customer_merged['order_purchase_timestamp'].max() - pd.Timedelta(days=period)][df_customer_merged['order_purchase_timestamp'] <= df_customer_merged['order_purchase_timestamp'].max()][['order_id', 'payment_value_sum','order_purchase_timestamp']].sort_values(by='order_purchase_timestamp', ascending=True)
@@ -310,6 +321,7 @@ def create_monet_pivot_org(period: int, df_customer_merged: pd.DataFrame) -> pd.
     return monet_pivot_org
 
 ### Mendapatkan df_rfm
+@st.cache_data
 def create_df_rfm_clustering(period:int, rec_pivot_org: pd.DataFrame, freq_pivot_org: pd.DataFrame, monet_pivot_org:pd.DataFrame) -> pd.DataFrame:
 
     period = period/30
@@ -544,6 +556,7 @@ def create_df_product_supply(prod_cat_supply_select: str, df_geo_point_sel: gpd.
     return df_product_supply
 
 ### Mendapatkan df_sellers_state_merge
+@st.cache_data
 def create_df_sellers_state_merged(df_sellers_merged: pd.DataFrame) -> pd.DataFrame:
 
     df_sellers_state_merged = df_sellers_merged.groupby(by='seller_state').agg({
@@ -558,6 +571,7 @@ def create_df_sellers_state_merged(df_sellers_merged: pd.DataFrame) -> pd.DataFr
     return df_sellers_state_merged
 
 ### Mendapatkan df_sellers_city_merged
+@st.cache_data
 def create_df_sellers_city_merged(df_sellers_merged: pd.DataFrame) -> pd.DataFrame:
 
     """
@@ -579,6 +593,7 @@ def create_df_sellers_city_merged(df_sellers_merged: pd.DataFrame) -> pd.DataFra
     return df_sellers_city_merged
 
 ### Mendapatkan kategori barang yang banyak dijual di kota berpenghasilan tertinggi
+@st.cache_data
 def return_kategori_di_kota_jual(df_sellers_city_merged: pd.DataFrame) -> list:
     
     """
@@ -605,6 +620,7 @@ def return_kategori_di_kota_jual(df_sellers_city_merged: pd.DataFrame) -> list:
     return penjualan_kategoribarang_di_kota
 
 ### Mendapatkan df_customer_state_merge
+@st.cache_data
 def create_df_customer_state_merged(df_customer_merged: pd.DataFrame) -> pd.DataFrame:
 
     df_customer_state_merged = df_customer_merged.groupby(by='customer_state').agg({
@@ -619,6 +635,7 @@ def create_df_customer_state_merged(df_customer_merged: pd.DataFrame) -> pd.Data
     return df_customer_state_merged
 
 ### Mendapatkan df_customer_city_merged
+@st.cache_data
 def create_df_customer_city_merged(df_customer_merged: pd.DataFrame) -> pd.DataFrame:
 
     """
@@ -640,6 +657,7 @@ def create_df_customer_city_merged(df_customer_merged: pd.DataFrame) -> pd.DataF
     return df_customer_city_merged
 
 ### Mendapatkan kategori barang yang banyak dibeli di kota berpengeluaran tertinggi
+@st.cache_data
 def return_kategori_di_kota_beli(df_customer_city_merged: pd.DataFrame) -> list:
     
     """
@@ -665,96 +683,211 @@ def return_kategori_di_kota_beli(df_customer_city_merged: pd.DataFrame) -> list:
 
     return pemberlian_kategoribarang_di_kota
 
-### Membuat Klaster customer
-kumpulan_klaster = ['Klaster I','Klaster II','Klaster III','Klaster IV','Klaster V','Klaster VI','Klaster VII']
+# ### Membuat Klaster customer
+# kumpulan_klaster = ['Klaster I','Klaster II','Klaster III','Klaster IV','Klaster V','Klaster VI','Klaster VII']
 
-def create_klaster_customer(df_customer_merged: pd.DataFrame) -> pd.DataFrame:
+# def create_klaster_customer(df_customer_merged: pd.DataFrame) -> pd.DataFrame:
 
-    """
-    Fungsi ini digunakan untuk menghasilkan klaster customer
+#     """
+#     Fungsi ini digunakan untuk menghasilkan klaster customer
 
-    Parameters:
-        df_customer_merged (pandas Data Frames): Data Frame df_customer_merged
+#     Parameters:
+#         df_customer_merged (pandas Data Frames): Data Frame df_customer_merged
     
-    Returns:
-        df_customer_klaster (pandas DataFrame): Data Frame df_customer_klaster
-    """
+#     Returns:
+#         df_customer_klaster (pandas DataFrame): Data Frame df_customer_klaster
+#     """
 
-    batas_atas_klaster_I = 70
-    batas_atas_klaster_II = 130
-    batas_atas_klaster_III = 210
-    batas_atas_klaster_IV = 350
-    batas_atas_klaster_V = 1000
-    batas_atas_klaster_VI = 4000
+#     batas_atas_klaster_I = 70
+#     batas_atas_klaster_II = 130
+#     batas_atas_klaster_III = 210
+#     batas_atas_klaster_IV = 350
+#     batas_atas_klaster_V = 1000
+#     batas_atas_klaster_VI = 4000
 
-    batasan_klaster = [0,
-                       batas_atas_klaster_I,
-                       batas_atas_klaster_II,
-                       batas_atas_klaster_III,
-                       batas_atas_klaster_IV,
-                       batas_atas_klaster_V,
-                       batas_atas_klaster_VI,
-                       float('inf')
-                       ]
+#     batasan_klaster = [0,
+#                        batas_atas_klaster_I,
+#                        batas_atas_klaster_II,
+#                        batas_atas_klaster_III,
+#                        batas_atas_klaster_IV,
+#                        batas_atas_klaster_V,
+#                        batas_atas_klaster_VI,
+#                        float('inf')
+#                        ]
 
-    df_customer_merged['Klaster'] = pd.cut(df_customer_merged['payment_value_sum'],
-                                           bins=batasan_klaster,
-                                           labels=kumpulan_klaster,
-                                           include_lowest=True)
-    df_customer_klaster = df_customer_merged[['customer_id','payment_value_sum','Klaster']]
+#     df_customer_merged['Klaster'] = pd.cut(df_customer_merged['payment_value_sum'],
+#                                            bins=batasan_klaster,
+#                                            labels=kumpulan_klaster,
+#                                            include_lowest=True)
+#     df_customer_klaster = df_customer_merged[['customer_id','payment_value_sum','Klaster']]
 
-    df_customer_klaster = df_customer_klaster.groupby(by='Klaster').agg({'Klaster': 'count'
-                                                                        ,'customer_id': lambda x: list(x)
-                                                                        ,'payment_value_sum': lambda x: list(x)})
+#     df_customer_klaster = df_customer_klaster.groupby(by='Klaster').agg({'Klaster': 'count'
+#                                                                         ,'customer_id': lambda x: list(x)
+#                                                                         ,'payment_value_sum': lambda x: list(x)})
 
-    df_customer_klaster.columns = ['customer_id_count','customer_id','payment_value_sum']
+#     df_customer_klaster.columns = ['customer_id_count','customer_id','payment_value_sum']
 
-    return df_customer_klaster
+#     return df_customer_klaster
 
-### Membuat Klaster seller
-def create_klaster_sellers(df_sellers_merged: pd.DataFrame) -> pd.DataFrame:
+# ### Membuat Klaster seller
+# def create_klaster_sellers(df_sellers_merged: pd.DataFrame) -> pd.DataFrame:
 
-    """
-    Fungsi ini digunakan untuk menghasilkan klaster seller
+#     """
+#     Fungsi ini digunakan untuk menghasilkan klaster seller
 
-    Parameters:
-        df_sellers_merged (pandas Data Frames): Data Frame df_sellers_merged
+#     Parameters:
+#         df_sellers_merged (pandas Data Frames): Data Frame df_sellers_merged
     
-    Returns:
-        df_sellers_klaster (pandas DataFrame): Data Frame df_sellers_klaster
-    """
+#     Returns:
+#         df_sellers_klaster (pandas DataFrame): Data Frame df_sellers_klaster
+#     """
 
-    batas_atas_klaster_I = 300
-    batas_atas_klaster_II = 1000
-    batas_atas_klaster_III = 2500
-    batas_atas_klaster_IV = 5000
-    batas_atas_klaster_V = 10000
-    batas_atas_klaster_VI = 50000
+#     batas_atas_klaster_I = 300
+#     batas_atas_klaster_II = 1000
+#     batas_atas_klaster_III = 2500
+#     batas_atas_klaster_IV = 5000
+#     batas_atas_klaster_V = 10000
+#     batas_atas_klaster_VI = 50000
 
-    batasan_klaster = [0,
-                       batas_atas_klaster_I,
-                       batas_atas_klaster_II,
-                       batas_atas_klaster_III,
-                       batas_atas_klaster_IV,
-                       batas_atas_klaster_V,
-                       batas_atas_klaster_VI,
-                       float('inf')
-                       ]
+#     batasan_klaster = [0,
+#                        batas_atas_klaster_I,
+#                        batas_atas_klaster_II,
+#                        batas_atas_klaster_III,
+#                        batas_atas_klaster_IV,
+#                        batas_atas_klaster_V,
+#                        batas_atas_klaster_VI,
+#                        float('inf')
+#                        ]
 
-    df_sellers_merged['Klaster'] = pd.cut(df_sellers_merged['price_sum'],
-                                          bins=batasan_klaster,
-                                          labels=kumpulan_klaster,
-                                          include_lowest=True)
+#     df_sellers_merged['Klaster'] = pd.cut(df_sellers_merged['price_sum'],
+#                                           bins=batasan_klaster,
+#                                           labels=kumpulan_klaster,
+#                                           include_lowest=True)
     
-    df_sellers_klaster = df_sellers_merged[['seller_id','price_sum','Klaster']]
+#     df_sellers_klaster = df_sellers_merged[['seller_id','price_sum','Klaster']]
 
-    df_sellers_klaster = df_sellers_klaster.groupby(by='Klaster').agg({'Klaster': 'count'
-                                                                    ,'seller_id': lambda x: list(x)
-                                                                    ,'price_sum': lambda x: list(x)})
+#     df_sellers_klaster = df_sellers_klaster.groupby(by='Klaster').agg({'Klaster': 'count'
+#                                                                     ,'seller_id': lambda x: list(x)
+#                                                                     ,'price_sum': lambda x: list(x)})
 
-    df_sellers_klaster.columns = ['seller_id_count','seller_id','price_sum']
+#     df_sellers_klaster.columns = ['seller_id_count','seller_id','price_sum']
 
-    return df_sellers_klaster
+#     return df_sellers_klaster
+
+
+#### GRAFIK
+##### GRAFIK LINE CHART
+@st.cache_resource
+def create_line_chart(data_frame: pd.DataFrame, column_: str, title_: str, ylabel_: str):
+
+    ## Plotting
+    ax = data_frame[column_].plot(
+        kind='line',
+        figsize=(8, 3.5),
+        title=title_,
+        marker='o',
+    )
+
+    plt.gca().spines[['top', 'right']].set_visible(False)
+    plt.ylabel(ylabel_)
+    plt.xlabel('Month-Year')
+
+    ## Menambahkan anotasi untuk setiap titik
+    for idx, value in enumerate(data_frame[column_]):
+        ax.annotate(
+            f'{value:.0f}',
+            xy=(idx, value),
+            xytext=(0, 5),
+            textcoords='offset points',
+            ha='center',
+            fontsize=8
+        )
+
+    plt.tight_layout()
+    return st.pyplot(plt, clear_figure=True)
+
+##### GRAFIK BAR CHART
+@st.cache_resource
+def create_bar_chart(data_frame: pd.DataFrame, xlabel_: str, ylabel_: str, title_: str, column_: str, colors: list):
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
+    
+    colors = ["#8F4700", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3"]
+
+    index_ = data_frame.index
+
+    for i in index_:
+
+        if len(i) > 3:
+
+            index_ = [j[:3]+'...' for j in data_frame.index]
+            break
+
+    sns.barplot(y=index_,
+                x=data_frame[column_],
+                data=data_frame,
+                palette=colors,
+                ax=ax
+                )
+                
+    ax.set_xlabel(xlabel_)
+    ax.set_ylabel(ylabel_)
+    ax.set_title(title_)
+    ax.tick_params(axis='y', )
+    ax.tick_params(axis='x', )
+
+    plt.tight_layout()
+    return st.pyplot(plt)
+
+##### GRAFIK PIE CHART
+@st.cache_resource
+def create_pie_chart(df_rfm_clustering: pd.DataFrame, title_):
+
+    klaster = df_rfm_clustering['klaster_rfm_score'].unique()
+    count = (df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[0]]['order_id'].count(),
+             df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[1]]['order_id'].count(),
+             df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[2]]['order_id'].count(),
+             )
+      
+    colors = ('#C46100', '#EF9234', '#F4B678', '#F9E0A2', '#F4B678', '#EF9234')
+    explode = (0.02, 0.03, 0.05)
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
+
+    ax.pie(
+        x=count,
+        labels=klaster,
+        autopct='%1.1f%%',
+        colors=colors,
+        explode=explode,
+        wedgeprops = {'width': 0.5},
+        )
+
+    plt.title(title_)
+    plt.tight_layout()
+
+    return st.pyplot(plt)
+
+##### Grafik Peta
+@st.cache_resource
+def create_map(state_map_select_cust, _brazil_df, _df_geo_point_cust, colors_map_cust):
+
+    df_cities =  create_df_cities(state_map_select_cust)
+    color_ = colors_map_cust[int(_brazil_df.sort_values(by='UF', ascending=True)[_brazil_df['UF'] == state_map_select_cust]['UF'].index[0])]
+
+    # Filter, hanya poin-poin yang ada di state yang dipilih saja
+    # _df_geo_point_cust = _df_geo_point_cust[_df_geo_point_cust.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])]
+
+    # Plot map
+    axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
+    _df_geo_point_cust[_df_geo_point_cust.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
+    
+    plt.title(f'Peta Pembelian {state_map_select_cust} State')
+
+    plt.tight_layout()
+
+    return st.pyplot(plt)
+
 
 ## MEMBUAT FILTER
 min_date = df_order["order_purchase_timestamp"].min()
@@ -818,9 +951,9 @@ df_customer_city_merged = create_df_customer_city_merged(df_customer_merged)
 
 pembelian_kategoribarang_di_kota = return_kategori_di_kota_jual(df_customer_city_merged)
 
-df_customer_klaster = create_klaster_customer(df_customer_merged)
+# df_customer_klaster = create_klaster_customer(df_customer_merged)
 
-df_sellers_klaster = create_klaster_sellers(df_sellers_merged)
+# df_sellers_klaster = create_klaster_sellers(df_sellers_merged)
 
 
 ## DEPLOYMENT
@@ -849,59 +982,15 @@ with col2:
     # Total Revenue Graphic
     monthly_summary = create_monthly_summary(df_customer_merged)
 
-    ## Plotting
-    ax = monthly_summary['payment_value_sum'].plot(
-        kind='line',
-        figsize=(8, 3.5),
-        title='Monthly Revenue Trend',
-        marker='o'
-    )
-
-    plt.gca().spines[['top', 'right']].set_visible(False)
-    plt.ylabel('Revenue (BRL)')
-    plt.xlabel('Month-Year')
-
-    ## Menambahkan anotasi untuk setiap titik
-    for idx, value in enumerate(monthly_summary['payment_value_sum']):
-        ax.annotate(
-            f'{value:.0f}',
-            xy=(idx, value),
-            xytext=(0, 5),
-            textcoords='offset points',
-            ha='center',
-            fontsize=8
-        )
-
-    plt.tight_layout()
-    st.pyplot(plt)
+    create_line_chart(monthly_summary, 'payment_value_sum', 'Monthly Revenue Trend', 'Revenue (BRL)')
+    
     plt.close('all')
 
     # Total Transaksi Graphic
     monthly_transactions, daily_transactions = create_monthly_transactions(df_order_items_update)
     
-    ax = monthly_transactions['seller_id'].plot(
-        kind='line',
-        figsize=(8, 3.5),
-        title='Monthly Transactions Trend',
-        marker='o'
-    )
-    plt.gca().spines[['top', 'right']].set_visible(False)
-    plt.ylabel('Transactions')
-    plt.xlabel('Month-Year')
-
-    ## Menambahkan anotasi untuk setiap titik
-    for idx, value in enumerate(monthly_transactions['seller_id']):
-        ax.annotate(
-            f'{value:.0f}',
-            xy=(idx, value),
-            xytext=(0, 5),
-            textcoords='offset points',
-            ha='center',
-            fontsize=8
-        )
-
-    plt.tight_layout()
-    st.pyplot(plt)
+    create_line_chart(monthly_transactions, 'seller_id', 'Monthly Transactions Trend', 'Transactions')
+    
     plt.close('all')
 
     # Active Sellers
@@ -914,162 +1003,74 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
-
-    df_0 = df_sellers_merged.groupby(by='seller_state').agg({
-                                                        'price_sum': 'sum'
-                                                        }).sort_values(by = ('price_sum'), ascending = False).head(5)
-    df_0 = df_0.sort_values(by = ('price_sum'), ascending = False)
-    
     colors = ["#8F4700", "#D3D3D3", "#D3D3D3", "#D3D3D3", "#D3D3D3"]
 
-    sns.barplot(y=df_0.index,
-                x=df_0['price_sum'],
-                data=df_0,
-                palette=colors,
-                ax=ax
-                )
-                
-    ax.set_xlabel("Total Penghasilan (Juta BRL)")
-    ax.set_ylabel("Nama State")
-    ax.set_title("Top 5 Total Penghasilan Seluruh Seller di Setiap State")
-    ax.tick_params(axis='y', )
-    ax.tick_params(axis='x', )
+    create_bar_chart(df_sellers_state_merged.head(5),
+                    "Total Incomes (Million BRL)",
+                    "State's Name",
+                    "Top 5 Total Incomes by All Sellers in Each State",
+                    'price_sum',
+                    colors
+                    )
 
-    plt.tight_layout()
-    st.pyplot(plt)
     plt.close('all')
 
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
+    create_bar_chart(df_sellers_city_merged.head(5),
+                    "Total Incomes (Million BRL)",
+                    "City's Name",
+                    "Top 5 Total Incomes by All Sellers in Each City",
+                    'price_sum',
+                    colors
+                    )
 
-    df_0 = df_sellers_merged.groupby(by='seller_city').agg({
-                                                        'price_sum': 'sum'
-                                                        }).sort_values(by = ('price_sum'), ascending = False).head(5)
-    df_0 = df_0.sort_values(by = ('price_sum'), ascending = False)
-    
-    index_ = [i[:6]+'...' for i in df_0.index]
-
-    sns.barplot(y=index_,
-                x=df_0['price_sum'],
-                data=df_0,
-                palette=colors,
-                ax=ax
-                )    
-    
-    ax.set_xlabel("Total Penghasilan (Juta BRL)")
-    ax.set_ylabel("Nama City")
-    ax.set_title("Top 5 Total Penghasilan Seluruh Seller di Setiap Kota")
-    ax.tick_params(axis='y', )
-    ax.tick_params(axis='x', )
-    
-    plt.tight_layout()
-    st.pyplot(plt)
     plt.close('all')
-
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
 
     df_0 = df_sellers_merged.groupby(by='seller_id').agg({
                                                         'price_sum': 'sum'
                                                         }).sort_values(by = ('price_sum'), ascending = False).head(5)
-    df_0 = df_0.sort_values(by = ('price_sum'), ascending = False)
     
-    index_ = [i[:3]+'...' for i in df_0.index]
-
-    sns.barplot(y=index_,
-                x=df_0['price_sum'],
-                data=df_0,
-                palette=colors,
-                ax=ax
-                )   
-
-    ax.set_xlabel("Total Penghasilan (BRL)")
-    ax.set_ylabel("ID Seller")
-    ax.set_title("Top 5 Total Penghasilan Seller")
-    ax.tick_params(axis='y', )
-    ax.tick_params(axis='x', )
-
-    plt.tight_layout()
-    st.pyplot(plt)
+    create_bar_chart(df_0,
+                    "Total Incomes (BRL)",
+                    "Seller's ID",
+                    "Top 5 Seller's Total Incomes",
+                    'price_sum',
+                    colors
+                    )
+    
     plt.close('all')
 
 with col2:
     
-    df_0 = df_sellers_merged.groupby(by='seller_state').agg({
-                                'price_sum': 'sum',
-                                'product_category_name_<lambda>': 'sum'
-                                }).sort_values(by = ('price_sum'), ascending = False).head(8)
     state = st.selectbox(
         label="Choose State:",
-        options=df_0.index,
+        options=df_sellers_state_merged.index,
         index=0
     )
 
     df_monthly_seller_state = create_df_monthly_seller_state(state, df_order_items_update, df_sellers, df_order)
 
-    ## Plotting
-    ax = df_monthly_seller_state['price'].plot(
-            kind='line',
-            figsize=(8, 3.5),
-            title='Monthly Revenue Trend',
-            marker='o'
-        )
+    create_line_chart(df_monthly_seller_state, 
+                      'price', 
+                      f'{state} State Monthly Incomes Trend', 
+                      'Incomes (BRL)'
+                      )
 
-    plt.gca().spines[['top', 'right']].set_visible(False)
-    plt.ylabel('Revenue (BRL)')
-    plt.xlabel('Month-Year')
-
-    ## Menambahkan anotasi untuk setiap titik
-    for idx, value in enumerate(df_monthly_seller_state['price']):
-            ax.annotate(
-                f'{value:.0f}',
-                xy=(idx, value),
-                xytext=(0, 5),
-                textcoords='offset points',
-                ha='center',
-                fontsize=8
-            )
-    
-    plt.tight_layout()
-    st.pyplot(plt)
     plt.close('all')
 
-    df_0 = df_sellers_merged.groupby(by='seller_city').agg({
-                                'price_sum': 'sum',
-                                'product_category_name_<lambda>': 'sum'
-                                }).sort_values(by = ('price_sum'), ascending = False).head(8)
     city = st.selectbox(
         label="Choose City:",
-        options=df_0.index,
+        options=df_sellers_city_merged.index,
         index=0
     )
 
     df_monthly_seller_city = create_df_monthly_seller_city(city, df_order_items_update, df_sellers, df_order)
 
-    ## Plotting
-    ax = df_monthly_seller_city['price'].plot(
-            kind='line',
-            figsize=(8, 3.5),
-            title='Monthly Revenue Trend',
-            marker='o'
-        )
-
-    plt.gca().spines[['top', 'right']].set_visible(False)
-    plt.ylabel('Revenue (BRL)')
-    plt.xlabel('Month-Year')
-
-    ## Menambahkan anotasi untuk setiap titik
-    for idx, value in enumerate(df_monthly_seller_city['price']):
-            ax.annotate(
-                f'{value:.0f}',
-                xy=(idx, value),
-                xytext=(0, 5),
-                textcoords='offset points',
-                ha='center',
-                fontsize=8
-            )
-    
-    plt.tight_layout()
-    st.pyplot(plt)
+    create_line_chart(df_monthly_seller_city, 
+                      'price', 
+                      f'{city.title()} Monthly Incomes Trend', 
+                      'Incomes (BRL)'
+                      )
+                      
     plt.close('all')
 
 ## Customer Analysis
@@ -1083,161 +1084,74 @@ with col1:
     # st.markdown("<p> </p>", unsafe_allow_html=True)
     # st.markdown("<p> </p>", unsafe_allow_html=True)
 
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
-
-    df_0 = df_customer_merged.groupby(by='customer_state').agg({
-                                                        'payment_value_sum': 'sum'
-                                                        }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
-    df_0 = df_0.sort_values(by = ('payment_value_sum'), ascending = False)
-    
     colors = ["#8F4700", "#D3D3D3","#D3D3D3", "#D3D3D3", "#D3D3D3"]
 
-    sns.barplot(y=df_0.index,
-                x=df_0['payment_value_sum'],
-                data=df_0,
-                palette=colors,
-                ax=ax
-                )
-    ax.set_xlabel("Total Pengeluaran (Juta BRL)")
-    ax.set_ylabel("Nama State")
-    ax.set_title("Top 5 Total Pengeluaran Seluruh Customer di Setiap State")
-    ax.tick_params(axis='y',)
-    ax.tick_params(axis='x',)
+    create_bar_chart(df_customer_state_merged.head(5),
+                    "Total Expenses (Million BRL)",
+                    "State's Name",
+                    "Top 5 Total Expenses by All Customers in Each State",
+                    "payment_value_sum",
+                    colors
+                    )
 
-    plt.tight_layout()
-    st.pyplot(plt)
     plt.close('all')
-
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
-
-    df_0 = df_customer_merged.groupby(by='customer_city').agg({
-                                                        'payment_value_sum': 'sum'
-                                                        }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
-    df_0 = df_0.sort_values(by = ('payment_value_sum'), ascending = False)
     
-    index_ = [i[:6]+'...' for i in df_0.index]
+    create_bar_chart(df_customer_city_merged.head(5),
+                    "Total Expenses (Million BRL)",
+                    "City's Name",
+                    "Top 5 Total Expenses by All Customers in Each City",
+                    "payment_value_sum",
+                    colors
+                    )
 
-    sns.barplot(y=index_,
-                x=df_0['payment_value_sum'],
-                data=df_0,
-                palette=colors,
-                ax=ax
-                )    
-    
-    ax.set_xlabel("Total Pengeluaran (Juta BRL)")
-    ax.set_ylabel("Nama City")
-    ax.set_title("Top 5 Total Pengeluaran Seluruh Customer di Setiap Kota")
-    ax.tick_params(axis='y',)
-    ax.tick_params(axis='x',)
-
-    plt.tight_layout()
-    st.pyplot(plt)
     plt.close('all')
-
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
     
     df_0 = df_customer_merged.groupby(by='customer_id').agg({
                                                         'payment_value_sum': 'sum'
                                                         }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
-    df_0 = df_0.sort_values(by = ('payment_value_sum'), ascending = False)
-    
-    index_ = [i[:3]+'...' for i in df_0.index]
 
-    sns.barplot(y=index_,
-                x=df_0['payment_value_sum'],
-                data=df_0,
-                palette=colors,
-                ax=ax
-                )   
+    create_bar_chart(df_0,
+                    "Total Expenses (BRL)",
+                    "Customer's ID",
+                    "Top 5 Total Expenses by All Customers in Each City",
+                    "payment_value_sum",
+                    colors
+                    )
 
-    ax.set_xlabel("Total Pengeluaran (BRL)")
-    ax.set_ylabel("ID Customer")
-    ax.set_title("Top 5 Total Pengeluaran Customer")
-    ax.tick_params(axis='y',)
-    ax.tick_params(axis='x',)
-
-    plt.tight_layout()
-    st.pyplot(plt)
     plt.close('all')
 
 with col2:
 
-    df_0 = df_customer_merged.groupby(by='customer_state').agg({
-                                'payment_value_sum': 'sum',
-                                'product_category_name_<lambda>': 'sum'
-                                }).sort_values(by = ('payment_value_sum'), ascending = False).head(8)
     state = st.selectbox(
         label="Choose State:",
-        options=df_0.index,
+        options=df_customer_state_merged.index,
         index=0
     )
 
     df_monthly_customer_state = create_df_monthly_customer_state(state, df_order_update, df_order_payments, df_customer)
     
-    ## Plotting
-    ax = df_monthly_customer_state['payment_value'].plot(
-            kind='line',
-            figsize=(8, 3.5),
-            title='Monthly Revenue Trend',
-            marker='o'
-        )
+    create_line_chart(df_monthly_customer_state, 
+                      'payment_value', 
+                      f'{state} State Monthly Expenses Trend', 
+                      'Expenses (BRL)'
+                      )
 
-    plt.gca().spines[['top', 'right']].set_visible(False)
-    plt.ylabel('Revenue (BRL)')
-    plt.xlabel('Month-Year')
-
-        ## Menambahkan anotasi untuk setiap titik
-    for idx, value in enumerate(df_monthly_customer_state['payment_value']):
-            ax.annotate(
-                f'{value:.0f}',
-                xy=(idx, value),
-                xytext=(0, 5),
-                textcoords='offset points',
-                ha='center',
-                fontsize=8
-            )
-
-    plt.tight_layout()
-    st.pyplot(plt)
     plt.close('all')
 
-    df_0 = df_customer_merged.groupby(by='customer_city').agg({
-                                'payment_value_sum': 'sum',
-                                'product_category_name_<lambda>': 'sum'
-                                }).sort_values(by = ('payment_value_sum'), ascending = False).head(8)
     city = st.selectbox(
         label="Choose City:",
-        options=df_0.index,
+        options=df_customer_city_merged.index,
         index=0
     )
 
     df_monthly_customer_city = create_df_monthly_customer_city(city, df_order_update, df_order_payments, df_customer)
     
-    ## Plotting
-    ax = df_monthly_customer_city['payment_value'].plot(
-            kind='line',
-            figsize=(8, 3.5),
-            title='Monthly Revenue Trend',
-            marker='o'
-        )
+    create_line_chart(df_monthly_customer_city, 
+                      'payment_value', 
+                      f'{city.title()} City Monthly Expenses Trend', 
+                      'Expenses (BRL)'
+                      )
 
-    plt.gca().spines[['top', 'right']].set_visible(False)
-    plt.ylabel('Revenue (BRL)')
-    plt.xlabel('Month-Year')
-
-        ## Menambahkan anotasi untuk setiap titik
-    for idx, value in enumerate(df_monthly_customer_city['payment_value']):
-            ax.annotate(
-                f'{value:.0f}',
-                xy=(idx, value),
-                xytext=(0, 5),
-                textcoords='offset points',
-                ha='center',
-                fontsize=8
-            )
-
-    plt.tight_layout()
-    st.pyplot(plt)
     plt.close('all')
 
 ## RFM Analysis
@@ -1286,28 +1200,8 @@ with col1:
     
     df_rfm_clustering = create_df_rfm_clustering(period, rec_pivot_org, freq_pivot_org, monet_pivot_org)
 
-    klaster = df_rfm_clustering['klaster_rfm_score'].unique()
-    count = (df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[0]][['order_id', 'klaster_rfm_score']]['order_id'].count(),
-            df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[1]][['order_id', 'klaster_rfm_score']]['order_id'].count(),
-            df_rfm_clustering[df_rfm_clustering['klaster_rfm_score'] == klaster[2]][['order_id', 'klaster_rfm_score']]['order_id'].count(),
-            )
-      
-    colors = ('#C46100', '#EF9234', '#F4B678', '#F9E0A2', '#F4B678', '#EF9234')
-    explode = (0.02, 0.03, 0.05)
+    create_pie_chart(df_rfm_clustering, "Klaster Customer Prioritas")
 
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))
-
-    ax.pie(
-        x=count,
-        labels=klaster,
-        autopct='%1.1f%%',
-        colors=colors,
-        explode=explode,
-        wedgeprops = {'width': 0.5},
-        )
-    plt.title("Klaster Customer Prioritas")
-
-    st.pyplot(plt)
     plt.close('all')
 
 with col2:
@@ -1340,7 +1234,7 @@ with col1:
     for i in range (input_kota):
 
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))    
-            
+        
         penjualan_kategoribarang_di_kota[i][1] = penjualan_kategoribarang_di_kota[i][1].reset_index().sort_values(by = ('count'), ascending = False)
         penjualan_kategoribarang_di_kota[i][1] = penjualan_kategoribarang_di_kota[i][1].head(input_barang)
         
@@ -1363,33 +1257,33 @@ with col1:
         st.pyplot(fig)
         plt.close('all')
 
-with col2:
+# with col2:
     
-    for i in range (input_kota):
+#     for i in range (input_kota):
 
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))    
+#         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))    
             
-        pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].reset_index().sort_values(by = ('count'), ascending = False)
-        pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].head(input_barang)
+#         pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].reset_index().sort_values(by = ('count'), ascending = False)
+#         pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].head(input_barang)
         
-        pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'] = [i[:12]+'...' for i in pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>']]
+#         pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'] = [i[:12]+'...' for i in pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>']]
             
-        sns.barplot(y=pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
-                    x=pembelian_kategoribarang_di_kota[i][1]['count'],
-                    data=pembelian_kategoribarang_di_kota[i][1],
-                    palette=colors,
-                    ax=ax
-                    )
+#         sns.barplot(y=pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
+#                     x=pembelian_kategoribarang_di_kota[i][1]['count'],
+#                     data=pembelian_kategoribarang_di_kota[i][1],
+#                     palette=colors,
+#                     ax=ax
+#                     )
                                         
-        ax.set_xlabel("Total Pembelian Barang (Satuan)",)
-        ax.set_ylabel("Kategori Barang",)
-        ax.set_title("Top 10 Pembelian Kategori Barang di"+ " " + pembelian_kategoribarang_di_kota[i][0],)
-        ax.tick_params(axis='y',)
-        ax.tick_params(axis='x',)
+#         ax.set_xlabel("Total Pembelian Barang (Satuan)",)
+#         ax.set_ylabel("Kategori Barang",)
+#         ax.set_title("Top 10 Pembelian Kategori Barang di"+ " " + pembelian_kategoribarang_di_kota[i][0],)
+#         ax.tick_params(axis='y',)
+#         ax.tick_params(axis='x',)
 
-        plt.tight_layout()                                                                                                                                 
-        st.pyplot(fig)
-        plt.close('all')
+#         plt.tight_layout()                                                                                                                                 
+#         st.pyplot(fig)
+#         plt.close('all')
 
 ## CUSTOMER & SELLER Analysis
 # st.header('CUSTOMER & SELLER ANALYSIS')
@@ -1472,19 +1366,19 @@ with col1:
         "#FFD700", "#F900B4", "#8B4513"   # Warm and natural colors
     ]
     
-    axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-    df_geo_point_cust.sort_values(by='customer_state', ascending=True).plot(ax = axis, column='customer_state',  cmap=ListedColormap(colors_map_cust), markersize = 5, legend=True)
+    # axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
+    # df_geo_point_cust.sort_values(by='customer_state', ascending=True).plot(ax = axis, column='customer_state',  cmap=ListedColormap(colors_map_cust), markersize = 5, legend=True)
 
-    # Menambah label provinsi
-    for city, coords in zip(brazil_df.UF, brazil_df.centroid):
-        plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
+    # # Menambah label provinsi
+    # for city, coords in zip(brazil_df.UF, brazil_df.centroid):
+    #     plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
 
-    # Menambahkan judul
-    plt.title('Peta Provinsi Brazil', fontsize=15)
+    # # Menambahkan judul
+    # plt.title('Peta Provinsi Brazil', fontsize=15)
 
-    plt.tight_layout()
-    st.pyplot(plt)
-    plt.close('all')
+    # plt.tight_layout()
+    # st.pyplot(plt)
+    # plt.close('all')
     
     state_map_select_cust = st.selectbox(
         label="Choose Customer State:",
@@ -1492,20 +1386,22 @@ with col1:
         index=0
     )[:2]
 
-    df_cities =  create_df_cities(state_map_select_cust)
-    color_ = colors_map_cust[int(brazil_df.sort_values(by='UF', ascending=True)[brazil_df['UF'] == state_map_select_cust]['UF'].index[0])]
+    create_map(state_map_select_cust, brazil_df[['geometry', 'UF']], df_geo_point_cust['geometry'], colors_map_cust)
 
-    # Filter, hanya poin-poin yang ada di state yang dipilih saja
-    # df_geo_point_cust = df_geo_point_cust[df_geo_point_cust.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])]
+    # df_cities =  create_df_cities(state_map_select_cust)
+    # color_ = colors_map_cust[int(brazil_df.sort_values(by='UF', ascending=True)[brazil_df['UF'] == state_map_select_cust]['UF'].index[0])]
 
-    # Plot map
-    axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
-    df_geo_point_cust[df_geo_point_cust.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
+    # # Filter, hanya poin-poin yang ada di state yang dipilih saja
+    # # df_geo_point_cust = df_geo_point_cust[df_geo_point_cust.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])]
+
+    # # Plot map
+    # axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
+    # df_geo_point_cust[df_geo_point_cust.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_cust].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
     
-    plt.title(f'Peta Pembelian {state_map_select_cust} State')
+    # plt.title(f'Peta Pembelian {state_map_select_cust} State')
 
-    plt.tight_layout()
-    st.pyplot(plt)
+    # plt.tight_layout()
+    # st.pyplot(plt)
     plt.close('all')
 
     st.subheader("--PRODUCT DEMAND SECTION--")
@@ -1518,99 +1414,99 @@ with col1:
 
     df_product_demand = create_df_product_demand(prod_cat_demand_select, df_geo_point_cust)
 
-    axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-    df_product_demand.plot(ax = axis, column='customer_state',  cmap=ListedColormap(colors_map_cust), markersize = 5, legend=True)
+#     axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
+#     df_product_demand.plot(ax = axis, column='customer_state',  cmap=ListedColormap(colors_map_cust), markersize = 5, legend=True)
 
-    # Menambah label provinsi
-    for city, coords in zip(brazil_df.UF, brazil_df.centroid):
-        plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
+#     # Menambah label provinsi
+#     for city, coords in zip(brazil_df.UF, brazil_df.centroid):
+#         plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
 
-    # Menambahkan plot titik jika diperlukan
-    # df_product_demand.plot(ax=axis, color='red', markersize=1)
+#     # Menambahkan plot titik jika diperlukan
+#     # df_product_demand.plot(ax=axis, color='red', markersize=1)
 
-    # Menambahkan judul
-    plt.title('Peta Provinsi Brazil', fontsize=15)
+#     # Menambahkan judul
+#     plt.title('Peta Provinsi Brazil', fontsize=15)
 
-    plt.tight_layout()
-    st.pyplot(plt)
-    plt.close('all')
+#     plt.tight_layout()
+#     st.pyplot(plt)
+#     plt.close('all')
 
-with col2:
+# with col2:
 
-    st.subheader("--SELLER SECTION--")
+#     st.subheader("--SELLER SECTION--")
 
-    colors_map_sel = [
-        "#FF0000", "#00FF00", "#FF00FF", "#00FFFF",  # Primary Colors
-        "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
-        "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
-        "#D2691E", "#B22222", "#228B22", "#FF8C00", "#A52A2A",  # More vibrant shades
-        "#FFD700", "#F900B4",  # Warm and natural colors
-    ]
+#     colors_map_sel = [
+#         "#FF0000", "#00FF00", "#FF00FF", "#00FFFF",  # Primary Colors
+#         "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
+#         "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
+#         "#D2691E", "#B22222", "#228B22", "#FF8C00", "#A52A2A",  # More vibrant shades
+#         "#FFD700", "#F900B4",  # Warm and natural colors
+#     ]
 
-    axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-    df_geo_point_sel.sort_values(by='seller_state', ascending=True).plot(ax = axis, column='seller_state',  cmap=ListedColormap(colors_map_sel), markersize = 5, legend=True)
+#     axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
+#     df_geo_point_sel.sort_values(by='seller_state', ascending=True).plot(ax = axis, column='seller_state',  cmap=ListedColormap(colors_map_sel), markersize = 5, legend=True)
 
-    # Menambah label provinsi
-    for city, coords in zip(brazil_df.UF, brazil_df.centroid):
-        plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
+#     # Menambah label provinsi
+#     for city, coords in zip(brazil_df.UF, brazil_df.centroid):
+#         plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
 
-    # Menambahkan plot titik jika diperlukan
-    # df_geo_point_sel.plot(ax=axis, color='red', markersize=1)
+#     # Menambahkan plot titik jika diperlukan
+#     # df_geo_point_sel.plot(ax=axis, color='red', markersize=1)
 
-    # Menambahkan judul
-    plt.title('Peta Provinsi Brazil', fontsize=15)
+#     # Menambahkan judul
+#     plt.title('Peta Provinsi Brazil', fontsize=15)
     
-    plt.tight_layout()
-    st.pyplot(plt)
-    plt.close('all')
+#     plt.tight_layout()
+#     st.pyplot(plt)
+#     plt.close('all')
 
-    state_map_select_sel = st.selectbox(
-        label="Choose Seller State:",
-        options=df_sellers_state_merged['index+id'],
-        index=0
-    )[:2]
+#     state_map_select_sel = st.selectbox(
+#         label="Choose Seller State:",
+#         options=df_sellers_state_merged['index+id'],
+#         index=0
+#     )[:2]
 
-    df_cities =  create_df_cities(state_map_select_sel)
-    color_ = colors_map_cust[int(brazil_df.sort_values(by='UF', ascending=True)[brazil_df['UF'] == state_map_select_sel]['UF'].index[0])]
+#     df_cities =  create_df_cities(state_map_select_sel)
+#     color_ = colors_map_cust[int(brazil_df.sort_values(by='UF', ascending=True)[brazil_df['UF'] == state_map_select_sel]['UF'].index[0])]
 
-    # Filter, hanya poin-poin yang ada di state yang dipilih saja
-    # df_geo_point_sel = df_geo_point_sel[df_geo_point_sel.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_sel].geometry.iloc[0])]
+#     # Filter, hanya poin-poin yang ada di state yang dipilih saja
+#     # df_geo_point_sel = df_geo_point_sel[df_geo_point_sel.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_sel].geometry.iloc[0])]
 
-    # Plot map
-    axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
-    df_geo_point_sel[df_geo_point_sel.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_sel].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
+#     # Plot map
+#     axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
+#     df_geo_point_sel[df_geo_point_sel.geometry.within(brazil_df[brazil_df['UF'] == state_map_select_sel].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
     
-    plt.title(f'Peta Penjual {state_map_select_sel} State')
+#     plt.title(f'Peta Penjual {state_map_select_sel} State')
 
-    plt.tight_layout()
-    st.pyplot(plt)
-    plt.close('all')
+#     plt.tight_layout()
+#     st.pyplot(plt)
+#     plt.close('all')
 
-    st.subheader("--PRODUCT SUPPLY SECTION--")
+#     st.subheader("--PRODUCT SUPPLY SECTION--")
 
-    prod_supply_counts = create_prod_supply_counts(df_geo_point_sel)
+#     prod_supply_counts = create_prod_supply_counts(df_geo_point_sel)
 
-    prod_cat_supply_select = st.selectbox(
-        label="Choose Product Category:",
-        options=prod_supply_counts['index+count'],
-        index=0
-    )
+#     prod_cat_supply_select = st.selectbox(
+#         label="Choose Product Category:",
+#         options=prod_supply_counts['index+count'],
+#         index=0
+#     )
 
-    df_product_supply = create_df_product_supply(prod_cat_supply_select, df_geo_point_sel)
+#     df_product_supply = create_df_product_supply(prod_cat_supply_select, df_geo_point_sel)
 
-    axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
-    df_product_supply.plot(ax = axis, column='seller_state',  cmap=ListedColormap(colors_map_sel), markersize = 5, legend=True)
+#     axis = brazil_df.plot(color = 'white', edgecolor='black', figsize=(15, 15))
+#     df_product_supply.plot(ax = axis, column='seller_state',  cmap=ListedColormap(colors_map_sel), markersize = 5, legend=True)
 
-    # Menambah label provinsi
-    for city, coords in zip(brazil_df.UF, brazil_df.centroid):
-        plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
+#     # Menambah label provinsi
+#     for city, coords in zip(brazil_df.UF, brazil_df.centroid):
+#         plt.text(coords.x, coords.y, city, fontsize=12, ha='center', color='red')
 
-    # Menambahkan plot titik jika diperlukan
-    # df_product_supply.plot(ax=axis, color='red', markersize=1)
+#     # Menambahkan plot titik jika diperlukan
+#     # df_product_supply.plot(ax=axis, color='red', markersize=1)
 
-    # Menambahkan judul
-    plt.title('Peta Provinsi Brazil', fontsize=15)
+#     # Menambahkan judul
+#     plt.title('Peta Provinsi Brazil', fontsize=15)
 
-    plt.tight_layout()
-    st.pyplot(plt)
-    plt.close('all')
+#     plt.tight_layout()
+#     st.pyplot(plt)
+#     plt.close('all')
