@@ -1507,7 +1507,7 @@ if selected == "PRODUCT ANALYSIS" or selected == "SHOW ALL":
                             pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
                             "Total Purchases of Product (Units)",
                             "Product Category",
-                            "Top 10 Purchases by Product Category in"+ " " + pembelian_kategoribarang_di_kota[i][0],
+                            "Top 10 Purchases by Product Category in"+ " " + pembelian_kategoribarang_di_kota[i][0].title(),
                             'count',
                             colors,
                             slicer=5)
