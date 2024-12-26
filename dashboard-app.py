@@ -5,13 +5,14 @@ from matplotlib import font_manager
 from matplotlib import rcParams
 import seaborn as sns
 import streamlit as st
-from babel.numbers import format_currency
 import math
 import geopandas as gpd
 from matplotlib.colors import ListedColormap
 import unicodedata
 import requests
 import tempfile
+from streamlit_option_menu import option_menu
+
 
 ############# STYLING #############
 # Font untuk matplotlib
@@ -28,8 +29,6 @@ custom_font = font_manager.FontProperties(fname=temp_font_path)
 
 # Set font sebagai default
 rcParams['font.family'] = custom_font.get_name()
-st.write(rcParams['font.family'])
-st.write(custom_font.get_name())
 
 st.html("""
         
@@ -49,22 +48,33 @@ st.html("""
             background-color: #FFF;
             text-align: center;
             align-content: auto;
+            margin: 0;
+            padding: 10px;
         }
 
         [data-testid="stMetricLabel"] {
+            font-size: .7rem;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
         [data-testid="stMetricValue"] {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
+        }
+
+        [data-testid="stColumn"] p{
+            font-size: .9rem;
+        }
+
+        [data-testid="stColumn"] li{
+            font-size: .9rem;
         }
 
         h4 {
             font-family: Roboto;
             text-align: center;
-            padding: 1rem 0;
+            padding: .5rem 0;
             font-size: 1.5rem;
         }
 
@@ -86,21 +96,28 @@ st.html("""
         </style>
         """)
 
-# Import File CSV
-df_customer = pd.read_csv('data/df_customer_clean.csv')
-df_order = pd.read_csv('data/df_order_clean.csv')
-df_order_items = pd.read_csv('data/df_order_items_clean.csv')
-df_order_payments = pd.read_csv('data/df_order_payments_clean.csv')
-df_product = pd.read_csv('data/df_product_clean.csv')
-df_sellers = pd.read_csv('data/df_sellers_clean.csv')
-df_geolocation = pd.read_csv('data/df_geolocation_clean.csv')
+@st.cache_resource
+def read_csv():
 
-# Tertinggal
-df_geolocation.drop(df_geolocation[df_geolocation['geolocation_lat'] <= -35].index, inplace=True)
+    # Import File CSV
+    df_customer = pd.read_csv('data/df_customer_clean.csv')
+    df_order = pd.read_csv('data/df_order_clean.csv')
+    df_order_items = pd.read_csv('data/df_order_items_clean.csv')
+    df_order_payments = pd.read_csv('data/df_order_payments_clean.csv')
+    df_product = pd.read_csv('data/df_product_clean.csv')
+    df_sellers = pd.read_csv('data/df_sellers_clean.csv')
+    df_geolocation = pd.read_csv('data/df_geolocation_clean.csv')
 
-## Convert datetime
-df_order['order_purchase_timestamp'] = pd.to_datetime(df_order['order_purchase_timestamp'])
-df_order_items['shipping_limit_date'] = pd.to_datetime(df_order_items['shipping_limit_date'])
+    # Tertinggal
+    df_geolocation.drop(df_geolocation[df_geolocation['geolocation_lat'] <= -35].index, inplace=True)
+
+    ## Convert datetime
+    df_order['order_purchase_timestamp'] = pd.to_datetime(df_order['order_purchase_timestamp'])
+    df_order_items['shipping_limit_date'] = pd.to_datetime(df_order_items['shipping_limit_date'])
+
+    return df_customer, df_order, df_order_items, df_order_payments, df_product, df_sellers, df_geolocation
+
+df_customer, df_order, df_order_items, df_order_payments, df_product, df_sellers, df_geolocation = read_csv()
 
 ## Kelompok order_id
 kelompok_cancel_unav = pd.concat([df_order[df_order['order_status']=='canceled']['order_id'],
@@ -144,11 +161,11 @@ def assign_klaster_rfm(data_frame):
 
     # Tentukan klaster berdasarkan jumlah skor tinggi
     if count_high_scores >= 2:
-        return "Prioritas 1"
+        return "1st Priority"
     elif count_high_scores == 1:
-        return "Prioritas 2"
+        return "2nd Priority"
     else:
-        return "Prioritas 3"
+        return "3rd Priority"
 
 ### Convert number ke teks 
 def format_number(num):
@@ -404,7 +421,7 @@ def create_monet_pivot_org(period: int, df_customer_merged: pd.DataFrame) -> pd.
     
     return monet_pivot_org
 
-### Mendapatkan df_rfm
+### Mendapatkan df_rfm_clustering
 @st.cache_data
 def create_df_rfm_clustering(period:int, rec_pivot_org: pd.DataFrame, freq_pivot_org: pd.DataFrame, monet_pivot_org:pd.DataFrame) -> pd.DataFrame:
 
@@ -1001,6 +1018,46 @@ def create_map_brazil(column_, _brazil_df, _df_geo_point, colors_map):
 
     return st.pyplot(plt, clear_figure=True)
 
+##### GRAFIK PETA STATE CUSTOMER
+@st.cache_resource
+def create_map_state_customer(state_map_select, _brazil_df, _df_geo_point, colors_map):
+
+    df_cities =  create_df_cities(state_map_select)
+    color_ = colors_map[int(_brazil_df.sort_values(by='UF', ascending=True)[_brazil_df['UF'] == state_map_select]['UF'].index[0])]
+
+    # Filter, hanya poin-poin yang ada di state yang dipilih saja
+    # _df_geo_point = _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])]
+
+    # Plot map
+    axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
+    _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
+    
+    plt.title(f'{state_map_select} State Map', fontproperties=custom_font, fontsize=15)
+
+    plt.tight_layout()
+
+    return st.pyplot(plt, clear_figure=True)
+
+##### GRAFIK PETA STATE SELLER
+@st.cache_resource
+def create_map_state_seller(state_map_select, _brazil_df, _df_geo_point, colors_map):
+
+    df_cities =  create_df_cities(state_map_select)
+    color_ = colors_map[int(_brazil_df.sort_values(by='UF', ascending=True)[_brazil_df['UF'] == state_map_select]['UF'].index[0])]
+
+    # Filter, hanya poin-poin yang ada di state yang dipilih saja
+    # _df_geo_point = _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])]
+
+    # Plot map
+    axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
+    _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
+    
+    plt.title(f'{state_map_select} State Map', fontproperties=custom_font, fontsize=15)
+
+    plt.tight_layout()
+
+    return st.pyplot(plt, clear_figure=True)
+
 ##### GRAFIK PETA BRAZIL PRODUCT DEMAND
 @st.cache_resource
 def create_map_brazil_product_dem(column_, _brazil_df, prod_cat_demand_select, _df_geo_point_cust, colors_map):
@@ -1041,26 +1098,6 @@ def create_map_brazil_product_sup(column_, _brazil_df, prod_cat_supply_select, _
 
     return st.pyplot(plt, clear_figure=True)
 
-##### GRAFIK PETA STATE
-@st.cache_resource
-def create_map_state(state_map_select, _brazil_df, _df_geo_point, colors_map):
-
-    df_cities =  create_df_cities(state_map_select)
-    color_ = colors_map[int(_brazil_df.sort_values(by='UF', ascending=True)[_brazil_df['UF'] == state_map_select]['UF'].index[0])]
-
-    # Filter, hanya poin-poin yang ada di state yang dipilih saja
-    # _df_geo_point = _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])]
-
-    # Plot map
-    axis = df_cities.plot(color = 'white', edgecolor = 'black', figsize = (10, 10))
-    _df_geo_point[_df_geo_point.geometry.within(_brazil_df[_brazil_df['UF'] == state_map_select].geometry.iloc[0])].plot(ax = axis, color = color_, markersize = 5)
-    
-    plt.title(f'{state_map_select} State Map', fontproperties=custom_font, fontsize=15)
-
-    plt.tight_layout()
-
-    return st.pyplot(plt, clear_figure=True)
-
 ## MEMBUAT FILTER
 min_date = df_order["order_purchase_timestamp"].min()
 max_date = df_order["order_purchase_timestamp"].max()
@@ -1071,13 +1108,23 @@ min_date = df_order["order_purchase_timestamp"].min()
 max_date = df_order["order_purchase_timestamp"].max()
 
 with st.sidebar:
-    st.title('Proyek Data Analisis')
+    st.html('<h4><span>DASHBOARD</span></h4>')
     # Menambahkan logo perusahaan
-    st.image("https://learn.g2.com/hubfs/Imported%20sitepage%20images/1ZB5giUShe0gw9a6L69qAgsd7wKTQ60ZRoJC5Xq3BIXS517sL6i6mnkAN9khqnaIGzE6FASAusRr7w=w1439-h786.png")
+    # st.image("https://learn.g2.com/hubfs/Imported%20sitepage%20images/1ZB5giUShe0gw9a6L69qAgsd7wKTQ60ZRoJC5Xq3BIXS517sL6i6mnkAN9khqnaIGzE6FASAusRr7w=w1439-h786.png")
+
+    # Menu navigasi
+    selected = option_menu(
+        menu_title="Navigation Menu",  # required
+        options=["OVERVIEW", "SALES ANALYSIS", "CUSTOMER ANALYSIS",
+                 "RFM ANALYSIS", "PRODUCT ANALYSIS", "GEOSPATIAL ANALYSIS",
+                 "SHOW ALL"],  # required
+        menu_icon="cast",  # optional
+        default_index=0,  # optional
+    )
 
     # Mengambil start_date & end_date dari date_input
     start_date, end_date = st.date_input(
-        label='Rentang Waktu',
+        label='Time Interval',
         min_value=min_date,
         max_value=max_date,
         value=[min_date, max_date]
@@ -1129,418 +1176,429 @@ pembelian_kategoribarang_di_kota = return_kategori_di_kota_jual(df_customer_city
 
 
 ## DEPLOYMENT
-plt.style.use('default')
+# plt.style.use('default')
 
-## OVERVIEW
-st.html('<h4><span>OVERVIEW</span></h4>')
-col1, col2 = st.columns(border=True, spec=[0.4, 0.6])
+if selected == "OVERVIEW" or selected == "SHOW ALL":
+    ## OVERVIEW
+    st.html('<h4><span>OVERVIEW</span></h4>')
+    col1, col2 = st.columns(spec=[0.4, 0.6])
 
-with col1:
+    with col1:
 
-    # Revenue
-    value_ = format_number(df_customer_merged['payment_value_sum'].sum())
-    st.metric(label=("Total Revenue"),
-              value=(f"{value_} BRL"))
-    
-    # Transaksi
-    value_ = format_number(len(df_order_items_update[df_order_items_update['order_id'].isin(kelompok_seller)].index))
-    st.metric(label="Total Transactions",
-              value=(f"{value_} Transactions"))
-    
-    # Active Users
-    value_ = format_number(df_customer_merged['customer_id'].iloc[:-1].nunique())
-    st.metric(label="Active Users",
-              value=(f"{value_} Users"))
-    
-    # Active Sellers
-    value_ = format_number(df_sellers_merged['seller_id'].nunique())
-    st.metric(label="Active Sellers",
-              value=(f"{value_} Sellers"))
+        # Revenue
+        value_ = format_number(df_customer_merged['payment_value_sum'].sum())
+        st.metric(label=("Total Revenue"),
+                value=(f"{value_} BRL"),
+                border=True)
         
-with col2:
-
-    # Total Revenue Graphic
-    monthly_summary = create_monthly_summary(df_customer_merged)
-
-    create_line_chart(monthly_summary, 'payment_value_sum', 'Monthly Revenue Trend', 'Revenue (BRL)')
-    
-    plt.close('all')
-
-    # Total Transaksi Graphic
-    monthly_transactions, daily_transactions = create_monthly_transactions(df_order_items_update)
-    
-    create_line_chart(monthly_transactions, 'seller_id', 'Monthly Transactions Trend', 'Transactions')
-    
-    plt.close('all')
-
-## Sales Analysis
-st.html('<h4><span>SALES </span>ANALYSIS</h4>')
-col1, col2 = st.columns(2)
-
-with col1:
-
-    colors = ["#7e74f1", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE",
-              "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE"]
-
-    create_bar_chart(df_sellers_state_merged.head(5),
-                     df_sellers_state_merged.head(5).index,
-                     "Total Incomes (Million BRL)",
-                     "State's Name",
-                     "Top 5 Total Incomes by All Sellers in Each State",
-                     'price_sum',
-                     colors
-                     )
-
-    plt.close('all')
-
-    create_bar_chart(df_sellers_city_merged.head(5),
-                     df_sellers_state_merged.head(5).index,
-                     "Total Incomes (Million BRL)",
-                     "City's Name",
-                     "Top 5 Total Incomes by All Sellers in Each City",
-                     'price_sum',
-                     colors
-                     )
-
-    plt.close('all')
-
-    df_0 = df_sellers_merged.groupby(by='seller_id').agg({
-                                                        'price_sum': 'sum'
-                                                        }).sort_values(by = ('price_sum'), ascending = False).head(5)
-    
-    create_bar_chart(df_0,
-                     df_0.index,
-                     "Total Incomes (BRL)",
-                     "Seller's ID",
-                     "Top 5 Seller's Total Incomes",
-                     'price_sum',
-                     colors
-                     )
-    
-    plt.close('all')
-
-with col2:
-    
-    state = st.selectbox(
-        label="Choose State:",
-        options=df_sellers_state_merged.index,
-        index=0
-    )
-
-    df_monthly_seller_state = create_df_monthly_seller_state(state, df_order_items_update, df_sellers, df_order)
-
-    create_line_chart(df_monthly_seller_state, 
-                      'price', 
-                      f'{state} State Monthly Incomes Trend', 
-                      'Incomes (BRL)'
-                      )
-
-    plt.close('all')
-
-    city = st.selectbox(
-        label="Choose City:",
-        options=df_sellers_city_merged.index,
-        index=0
-    )
-
-    df_monthly_seller_city = create_df_monthly_seller_city(city, df_order_items_update, df_sellers, df_order)
-
-    create_line_chart(df_monthly_seller_city, 
-                      'price', 
-                      f'{city.title()} Monthly Incomes Trend', 
-                      'Incomes (BRL)'
-                      )
-                      
-    plt.close('all')
-
-## Customer Analysis
-st.html('<h4><span>CUSTOMER </span>ANALYSIS</h4>')
-col1, col2 = st.columns(2)
-
-with col1:
-
-    # st.markdown("<p> </p>", unsafe_allow_html=True)
-    # st.markdown("<p> </p>", unsafe_allow_html=True)
-    # st.markdown("<p> </p>", unsafe_allow_html=True)
-    # st.markdown("<p> </p>", unsafe_allow_html=True)
-
-    colors = ["#7e74f1", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE",
-              "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE"]
-
-    create_bar_chart(df_customer_state_merged.head(5),
-                     df_customer_state_merged.head(5).index,
-                     "Total Expenses (Million BRL)",
-                     "State's Name",
-                     "Top 5 Total Expenses by All Customers in Each State",
-                     "payment_value_sum",
-                     colors
-                     )
-
-    plt.close('all')
-    
-    create_bar_chart(df_customer_city_merged.head(5),
-                     df_customer_city_merged.head(5).index,
-                     "Total Expenses (Million BRL)",
-                     "City's Name",
-                     "Top 5 Total Expenses by All Customers in Each City",
-                     "payment_value_sum",
-                     colors
-                     )
-
-    plt.close('all')
-    
-    df_0 = df_customer_merged.groupby(by='customer_id').agg({
-                                                        'payment_value_sum': 'sum'
-                                                        }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
-
-    create_bar_chart(df_0,
-                     df_0.index,
-                     "Total Expenses (BRL)",
-                     "Customer's ID",
-                     "Top 5 Total Expenses by All Customers in Each City",
-                     "payment_value_sum",
-                     colors
-                     )
-
-    plt.close('all')
-
-with col2:
-
-    state = st.selectbox(
-        label="Choose State:",
-        options=df_customer_state_merged.index,
-        index=0
-    )
-
-    df_monthly_customer_state = create_df_monthly_customer_state(state, df_order_update, df_order_payments, df_customer)
-    
-    create_line_chart(df_monthly_customer_state, 
-                      'payment_value', 
-                      f'{state} State Monthly Expenses Trend', 
-                      'Expenses (BRL)'
-                      )
-
-    plt.close('all')
-
-    city = st.selectbox(
-        label="Choose City:",
-        options=df_customer_city_merged.index,
-        index=0
-    )
-
-    df_monthly_customer_city = create_df_monthly_customer_city(city, df_order_update, df_order_payments, df_customer)
-    
-    create_line_chart(df_monthly_customer_city, 
-                      'payment_value', 
-                      f'{city.title()} City Monthly Expenses Trend', 
-                      'Expenses (BRL)'
-                      )
-
-    plt.close('all')
-
-## RFM Analysis
-st.html('<h4><span>RFM </span>ANALYSIS</h4>')
-period = int((st.selectbox(label=f"Select Period: (today: {daily_transactions['year_month_day'].max()})",
-                            options=("30 days ago", "60 days ago", "90 days ago"),
-                            index=0))[:2])
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-
-    st.text("Recency")
-    st.caption("Average")
-    rec_pivot_org = create_rec_pivot_org(period, daily_transactions)
-    
-    recency = int(str(rec_pivot_org['year_month_day'].sum())[1:-8])/rec_pivot_org['year_month_day'].count()
-    
-    st.text(f"{math.floor(recency)} Days ago/Person")
-
-with col2:
-
-    st.text("Frequency")
-    st.caption("Average")
-
-    freq_pivot_org = create_freq_pivot_org(period, daily_transactions)
-
-    freq = math.ceil(freq_pivot_org.sum()/freq_pivot_org.count())
-
-    st.text(f"{freq} Transactions/Person")
-
-with col3:
-
-    st.text("Monetary")
-    st.caption("Average")
-
-    monet_pivot_org = create_monet_pivot_org(period, df_customer_merged)
-
-    monet = math.ceil(monet_pivot_org.sum()/monet_pivot_org.count())
-
-    st.text(f"{monet} BRL/Person")
-
-col1, col2 = st.columns(spec=[0.4,0.6])
-
-with col1:
-    
-    df_rfm_clustering = create_df_rfm_clustering(period, rec_pivot_org, freq_pivot_org, monet_pivot_org)
-
-    create_pie_chart(df_rfm_clustering, "Klaster Customer Prioritas")
-
-    plt.close('all')
-
-with col2:
-
-    st.text("Customer diberi skor 1-5 setiap di setiap metriknya (recency, frequency, monetary)")
-    st.text("blablablablabla")
-
-## PRODUCT Analysis
-st.html('<h4><span>PRODUCT </span>ANALYSIS</h4>')
-
-input_kota = st.selectbox(
-    label="Berapa kota yang ditampilkan?",
-    options=(2, 3, 4, 5, 6, 7, 8),
-    index=1
-)
-
-input_barang = st.selectbox(
-    label="Berapa kategori barang yang ditampilkan?",
-    options=(2, 3, 4, 5, 6, 7, 8, 9, 10),
-    index=4
-)
-
-col1, col2 = st.columns(2)
-
-colors = ["#7e74f1", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE",
-          "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE"]
-
-with col1:
-    
-    for i in range (input_kota):
-
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))    
+        # Transaksi
+        value_ = format_number(len(df_order_items_update[df_order_items_update['order_id'].isin(kelompok_seller)].index))
+        st.metric(label="Total Transactions",
+                value=(f"{value_} Transactions"),
+                border=True)
         
-        penjualan_kategoribarang_di_kota[i][1] = penjualan_kategoribarang_di_kota[i][1].reset_index().sort_values(by = ('count'), ascending = False)
-        penjualan_kategoribarang_di_kota[i][1] = penjualan_kategoribarang_di_kota[i][1].head(input_barang)
+        # Active Users
+        value_ = format_number(df_customer_merged['customer_id'].iloc[:-1].nunique())
+        st.metric(label="Active Users",
+                value=(f"{value_} Users"),
+                border=True)
         
-        penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'] = [i[:12]+'...' for i in penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>']]
-        
-        create_bar_chart(penjualan_kategoribarang_di_kota[i][1],
-                         penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
-                         "Total Penjualan Barang (Satuan)",
-                         "Kategori Barang",
-                         "Top 10 Penjualan Kategori Barang di"+ " " + penjualan_kategoribarang_di_kota[i][0],
-                         'count',
-                         colors,
-                         slicer=5)
-
-        plt.close('all')
-
-with col2:
-    
-    for i in range (input_kota):
-
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))    
+        # Active Sellers
+        value_ = format_number(df_sellers_merged['seller_id'].nunique())
+        st.metric(label="Active Sellers",
+                value=(f"{value_} Sellers"),
+                border=True)
             
-        pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].reset_index().sort_values(by = ('count'), ascending = False)
-        pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].head(input_barang)
-        
-        pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'] = [i[:12]+'...' for i in pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>']]
+    with col2:
 
-        create_bar_chart(pembelian_kategoribarang_di_kota[i][1],
-                         pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
-                         "Total Pembelian Barang (Satuan)",
-                         "Kategori Barang",
-                         "Top 10 Pembelian Kategori Barang di"+ " " + pembelian_kategoribarang_di_kota[i][0],
-                         'count',
-                         colors,
-                         slicer=5)
+        # Total Revenue Graphic
+        monthly_summary = create_monthly_summary(df_customer_merged)
+
+        create_line_chart(monthly_summary, 'payment_value_sum', 'Monthly Revenue Trend', 'Revenue (BRL)')
+        
+        plt.close('all')
+
+        # Total Transaksi Graphic
+        monthly_transactions, daily_transactions = create_monthly_transactions(df_order_items_update)
+        
+        create_line_chart(monthly_transactions, 'seller_id', 'Monthly Transactions Trend', 'Transactions')
+        
+        plt.close('all')
+
+if selected == "SALES ANALYSIS" or selected == "SHOW ALL":
+    ## Sales Analysis
+    st.html('<h4><span>SALES </span>ANALYSIS</h4>')
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        colors = ["#7e74f1", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE",
+                "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE"]
+
+        create_bar_chart(df_sellers_state_merged.head(5),
+                        df_sellers_state_merged.head(5).index,
+                        "Total Incomes (Million BRL)",
+                        "State's Name",
+                        "Top 5 Total Incomes by All Sellers in Each State",
+                        'price_sum',
+                        colors
+                        )
 
         plt.close('all')
 
-## GEOSPATIAL Analysis
-st.html('<h4><span>GEOSPATIAL </span>ANALYSIS</h4>')
+        create_bar_chart(df_sellers_city_merged.head(5),
+                        df_sellers_state_merged.head(5).index,
+                        "Total Incomes (Million BRL)",
+                        "City's Name",
+                        "Top 5 Total Incomes by All Sellers in Each City",
+                        'price_sum',
+                        colors
+                        )
 
-col1, col2 = st.columns(2)
+        plt.close('all')
 
-with col1:
+        df_0 = df_sellers_merged.groupby(by='seller_id').agg({
+                                                            'price_sum': 'sum'
+                                                            }).sort_values(by = ('price_sum'), ascending = False).head(5)
+        
+        create_bar_chart(df_0,
+                        df_0.index,
+                        "Total Incomes (BRL)",
+                        "Seller's ID",
+                        "Top 5 Seller's Total Incomes",
+                        'price_sum',
+                        colors
+                        )
+        
+        plt.close('all')
 
-    st.html('<h5><span>CUSTOMER </span>SECTION</h5>')
+    with col2:
+        
+        state = st.selectbox(
+            label="Choose State:",
+            options=df_sellers_state_merged.index,
+            index=0
+        )
 
-    colors_map_cust = [
-        "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",  # Primary Colors
-        "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
-        "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
-        "#D2691E", "#B22222", "#228B22", "#FF8C00", "#FA8072", "#A52A2A",  # More vibrant shades
-        "#FFD700", "#F900B4", "#8B4513"   # Warm and natural colors
-    ]
+        df_monthly_seller_state = create_df_monthly_seller_state(state, df_order_items_update, df_sellers, df_order)
 
-    create_map_brazil('customer_state', brazil_df, df_geo_point_cust, colors_map_cust)
+        create_line_chart(df_monthly_seller_state, 
+                        'price', 
+                        f'{state} State Monthly Incomes Trend', 
+                        'Incomes (BRL)'
+                        )
 
-    plt.close('all')
-    
-    state_map_select_cust = st.selectbox(
-        label="Choose Customer State:",
-        options=df_customer_state_merged['index+id'],
-        index=0
-    )[:2]
+        plt.close('all')
 
-    create_map_state(state_map_select_cust, brazil_df[['geometry', 'UF']], df_geo_point_cust['geometry'], colors_map_cust)
+        city = st.selectbox(
+            label="Choose City:",
+            options=df_sellers_city_merged.index,
+            index=0
+        )
 
-    plt.close('all')
+        df_monthly_seller_city = create_df_monthly_seller_city(city, df_order_items_update, df_sellers, df_order)
 
-    st.html('<h5>PRODUCT<span> DEMAND </span>SECTION</h5>')
+        create_line_chart(df_monthly_seller_city, 
+                        'price', 
+                        f'{city.title()} Monthly Incomes Trend', 
+                        'Incomes (BRL)'
+                        )
+                        
+        plt.close('all')
 
-    prod_cat_demand_select = st.selectbox(
-        label="Choose Product Category:",
-        options=prod_demand_counts['index+count'],
-        index=0
+if selected == "CUSTOMER ANALYSIS" or selected == "SHOW ALL":
+    ## Customer Analysis
+    st.html('<h4><span>CUSTOMER </span>ANALYSIS</h4>')
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        # st.markdown("<p> </p>", unsafe_allow_html=True)
+        # st.markdown("<p> </p>", unsafe_allow_html=True)
+        # st.markdown("<p> </p>", unsafe_allow_html=True)
+        # st.markdown("<p> </p>", unsafe_allow_html=True)
+
+        colors = ["#7e74f1", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE",
+                "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE"]
+
+        create_bar_chart(df_customer_state_merged.head(5),
+                        df_customer_state_merged.head(5).index,
+                        "Total Expenses (Million BRL)",
+                        "State's Name",
+                        "Top 5 Total Expenses by All Customers in Each State",
+                        "payment_value_sum",
+                        colors
+                        )
+
+        plt.close('all')
+        
+        create_bar_chart(df_customer_city_merged.head(5),
+                        df_customer_city_merged.head(5).index,
+                        "Total Expenses (Million BRL)",
+                        "City's Name",
+                        "Top 5 Total Expenses by All Customers in Each City",
+                        "payment_value_sum",
+                        colors
+                        )
+
+        plt.close('all')
+        
+        df_0 = df_customer_merged.groupby(by='customer_id').agg({
+                                                            'payment_value_sum': 'sum'
+                                                            }).sort_values(by = ('payment_value_sum'), ascending = False).head(5)
+
+        create_bar_chart(df_0,
+                        df_0.index,
+                        "Total Expenses (BRL)",
+                        "Customer's ID",
+                        "Top 5 Total Expenses by All Customers in Each City",
+                        "payment_value_sum",
+                        colors
+                        )
+
+        plt.close('all')
+
+    with col2:
+
+        state = st.selectbox(
+            label="Choose State:",
+            options=df_customer_state_merged.index,
+            index=0
+        )
+
+        df_monthly_customer_state = create_df_monthly_customer_state(state, df_order_update, df_order_payments, df_customer)
+        
+        create_line_chart(df_monthly_customer_state, 
+                        'payment_value', 
+                        f'{state} State Monthly Expenses Trend', 
+                        'Expenses (BRL)'
+                        )
+
+        plt.close('all')
+
+        city = st.selectbox(
+            label="Choose City:",
+            options=df_customer_city_merged.index,
+            index=0
+        )
+
+        df_monthly_customer_city = create_df_monthly_customer_city(city, df_order_update, df_order_payments, df_customer)
+        
+        create_line_chart(df_monthly_customer_city, 
+                        'payment_value', 
+                        f'{city.title()} City Monthly Expenses Trend', 
+                        'Expenses (BRL)'
+                        )
+
+        plt.close('all')
+
+if selected == "RFM ANALYSIS" or selected == "SHOW ALL":
+    ## RFM Analysis
+    st.html('<h4><span>RFM </span>ANALYSIS</h4>')
+    monthly_transactions, daily_transactions = create_monthly_transactions(df_order_items_update)
+    period = int((st.selectbox(label=f"Select Period: (today: {daily_transactions['year_month_day'].max()})",
+                                options=("30 days ago", "60 days ago", "90 days ago"),
+                                index=0))[:2])
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        rec_pivot_org = create_rec_pivot_org(period, daily_transactions)
+        
+        recency = int(str(rec_pivot_org['year_month_day'].sum())[1:-8])/rec_pivot_org['year_month_day'].count()
+        
+        value_ = math.floor(recency)
+        st.metric(label=("Average Recency"),
+                value=(f"{value_} Days ago"),
+                border=True)
+
+    with col2:
+
+        freq_pivot_org = create_freq_pivot_org(period, daily_transactions)
+
+        value_ = math.ceil(freq_pivot_org.sum()/freq_pivot_org.count())
+
+        st.metric(label=("Average Frequency"),
+                value=(f"{value_} Transactions"),
+                border=True)
+
+    with col3:
+
+        monet_pivot_org = create_monet_pivot_org(period, df_customer_merged)
+
+        value_ = math.ceil(monet_pivot_org.sum()/monet_pivot_org.count())
+
+        st.metric(label=("Average Frequency"),
+                value=(f"{value_} BRL"),
+                border=True)
+        
+    col1, col2 = st.columns(spec=[0.4,0.6])
+
+    with col1:
+        
+        df_rfm_clustering = create_df_rfm_clustering(period, rec_pivot_org, freq_pivot_org, monet_pivot_org)
+
+        create_pie_chart(df_rfm_clustering, "Customer Priority Cluster")
+
+        plt.close('all')
+
+    with col2:
+        st.html("""<p>This pie chart illustrates the distribution of customers into three priority categories based on the RFM (Recency, Frequency, Monetary) analysis:
+                <li>1st Priority - Customers with high values in two or more RFM dimensions.</li>
+                <li>2nd Priority - Customers with high values in one RFM dimension.</li>
+                <li>3rd Priority - Customers with low values across all RFM dimensions.</li></p>""")
+
+if selected == "PRODUCT ANALYSIS" or selected == "SHOW ALL":
+    ## PRODUCT Analysis
+    st.html('<h4><span>PRODUCT </span>ANALYSIS</h4>')
+
+    input_kota = st.selectbox(
+        label="Berapa kota yang ditampilkan?",
+        options=(2, 3, 4, 5, 6, 7, 8),
+        index=1
     )
 
-    # df_product_demand = create_df_product_demand(prod_cat_demand_select, df_geo_point_cust)
-
-    create_map_brazil_product_dem('customer_state', brazil_df, prod_cat_demand_select, df_geo_point_cust, colors_map_cust)
-
-    plt.close('all')
-
-with col2:
-
-    st.html('<h5><span>SELLER </span>SECTION</h5>')
-
-    colors_map_sel = [
-        "#FF0000", "#00FF00", "#FF00FF", "#00FFFF",  # Primary Colors
-        "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
-        "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
-        "#D2691E", "#B22222", "#228B22", "#FF8C00", "#A52A2A",  # More vibrant shades
-        "#FFD700", "#F900B4",  # Warm and natural colors
-    ]
-
-    create_map_brazil('seller_state', brazil_df, df_geo_point_sel, colors_map_sel)
-
-    plt.close('all')
-
-    state_map_select_sel = st.selectbox(
-        label="Choose Seller State:",
-        options=df_sellers_state_merged['index+id'],
-        index=0
-    )[:2]
-
-    create_map_state(state_map_select_sel, brazil_df[['geometry', 'UF']], df_geo_point_sel['geometry'], colors_map_cust)
-
-    plt.close('all')
-
-    st.html('<h5>PRODUCT<span> SUPPLY </span>SECTION</h5>')
-
-    prod_supply_counts = create_prod_supply_counts(df_geo_point_sel)
-
-    prod_cat_supply_select = st.selectbox(
-        label="Choose Product Category:",
-        options=prod_supply_counts['index+count'],
-        index=0
+    input_barang = st.selectbox(
+        label="Berapa kategori barang yang ditampilkan?",
+        options=(2, 3, 4, 5, 6, 7, 8, 9, 10),
+        index=4
     )
 
-    create_map_brazil_product_sup('seller_state', brazil_df, prod_cat_supply_select, df_geo_point_sel, colors_map_cust)
+    col1, col2 = st.columns(2)
 
-    plt.close('all')
+    colors = ["#7e74f1", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE",
+            "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE", "#F5F3FE"]
+
+    with col1:
+        
+        for i in range (input_kota):
+
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))    
+            
+            penjualan_kategoribarang_di_kota[i][1] = penjualan_kategoribarang_di_kota[i][1].reset_index().sort_values(by = ('count'), ascending = False)
+            penjualan_kategoribarang_di_kota[i][1] = penjualan_kategoribarang_di_kota[i][1].head(input_barang)
+            
+            penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'] = [i[:12]+'...' for i in penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>']]
+            
+            create_bar_chart(penjualan_kategoribarang_di_kota[i][1],
+                            penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
+                            "Total Penjualan Barang (Satuan)",
+                            "Kategori Barang",
+                            "Top 10 Penjualan Kategori Barang di"+ " " + penjualan_kategoribarang_di_kota[i][0],
+                            'count',
+                            colors,
+                            slicer=5)
+
+            plt.close('all')
+
+    with col2:
+        
+        for i in range (input_kota):
+
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 3.5))    
+                
+            pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].reset_index().sort_values(by = ('count'), ascending = False)
+            pembelian_kategoribarang_di_kota[i][1] = pembelian_kategoribarang_di_kota[i][1].head(input_barang)
+            
+            pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'] = [i[:12]+'...' for i in pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>']]
+
+            create_bar_chart(pembelian_kategoribarang_di_kota[i][1],
+                            pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
+                            "Total Pembelian Barang (Satuan)",
+                            "Kategori Barang",
+                            "Top 10 Pembelian Kategori Barang di"+ " " + pembelian_kategoribarang_di_kota[i][0],
+                            'count',
+                            colors,
+                            slicer=5)
+
+            plt.close('all')
+
+if selected == "GEOSPATIAL ANALYSIS" or selected == "SHOW ALL":
+    ## GEOSPATIAL Analysis
+    st.html('<h4><span>GEOSPATIAL </span>ANALYSIS</h4>')
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.html('<h5><span>CUSTOMER </span>SECTION</h5>')
+
+        colors_map_cust = [
+            "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",  # Primary Colors
+            "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
+            "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
+            "#D2691E", "#B22222", "#228B22", "#FF8C00", "#FA8072", "#A52A2A",  # More vibrant shades
+            "#FFD700", "#F900B4", "#8B4513"   # Warm and natural colors
+        ]
+
+        create_map_brazil('customer_state', brazil_df, df_geo_point_cust, colors_map_cust)
+
+        plt.close('all')
+        
+        state_map_select_cust = st.selectbox(
+            label="Choose Customer State:",
+            options=df_customer_state_merged['index+id'],
+            index=0
+        )[:2]
+
+        create_map_state_customer(state_map_select_cust, brazil_df[['geometry', 'UF']], df_geo_point_cust['geometry'], colors_map_cust)
+
+        plt.close('all')
+
+        st.html('<h5>PRODUCT<span> DEMAND </span>SECTION</h5>')
+
+        prod_cat_demand_select = st.selectbox(
+            label="Choose Product Category:",
+            options=prod_demand_counts['index+count'],
+            index=0
+        )
+
+        # df_product_demand = create_df_product_demand(prod_cat_demand_select, df_geo_point_cust)
+
+        create_map_brazil_product_dem('customer_state', brazil_df, prod_cat_demand_select, df_geo_point_cust, colors_map_cust)
+
+        plt.close('all')
+
+    with col2:
+
+        st.html('<h5><span>SELLER </span>SECTION</h5>')
+
+        colors_map_sel = [
+            "#FF0000", "#00FF00", "#FF00FF", "#00FFFF",  # Primary Colors
+            "#800000", "#808000", "#008000", "#000080", "#800080", "#808080",  # Dark and muted colors
+            "#C0C0C0", "#FF6347", "#DDA000", "#FF1493", "#8A2BE2", "#7FFF00",  # Vivid colors
+            "#D2691E", "#B22222", "#228B22", "#FF8C00", "#A52A2A",  # More vibrant shades
+            "#FFD700", "#F900B4",  # Warm and natural colors
+        ]
+
+        create_map_brazil('seller_state', brazil_df, df_geo_point_sel, colors_map_sel)
+
+        plt.close('all')
+
+        state_map_select_sel = st.selectbox(
+            label="Choose Seller State:",
+            options=df_sellers_state_merged['index+id'],
+            index=0
+        )[:2]
+
+        create_map_state_seller(state_map_select_sel, brazil_df[['geometry', 'UF']], df_geo_point_sel['geometry'], colors_map_cust)
+
+        plt.close('all')
+
+        st.html('<h5>PRODUCT<span> SUPPLY </span>SECTION</h5>')
+
+        prod_supply_counts = create_prod_supply_counts(df_geo_point_sel)
+
+        prod_cat_supply_select = st.selectbox(
+            label="Choose Product Category:",
+            options=prod_supply_counts['index+count'],
+            index=0
+        )
+
+        create_map_brazil_product_sup('seller_state', brazil_df, prod_cat_supply_select, df_geo_point_sel, colors_map_cust)
+
+        plt.close('all')
 
 
 
