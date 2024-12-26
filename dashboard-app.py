@@ -1483,9 +1483,9 @@ if selected == "PRODUCT ANALYSIS" or selected == "SHOW ALL":
             
             create_bar_chart(penjualan_kategoribarang_di_kota[i][1],
                             penjualan_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
-                            "Total Penjualan Barang (Satuan)",
-                            "Kategori Barang",
-                            "Top 10 Penjualan Kategori Barang di"+ " " + penjualan_kategoribarang_di_kota[i][0],
+                            "Total Sales of Product (Units)",
+                            "Product Category",
+                            "Top 10 Sales by Product Category in " + penjualan_kategoribarang_di_kota[i][0].title(),
                             'count',
                             colors,
                             slicer=5)
@@ -1505,13 +1505,13 @@ if selected == "PRODUCT ANALYSIS" or selected == "SHOW ALL":
 
             create_bar_chart(pembelian_kategoribarang_di_kota[i][1],
                             pembelian_kategoribarang_di_kota[i][1]['product_category_name_<lambda>'],
-                            "Total Pembelian Barang (Satuan)",
-                            "Kategori Barang",
-                            "Top 10 Pembelian Kategori Barang di"+ " " + pembelian_kategoribarang_di_kota[i][0],
+                            "Total Purchases of Product (Units)",
+                            "Product Category",
+                            "Top 10 Purchases by Product Category in"+ " " + pembelian_kategoribarang_di_kota[i][0],
                             'count',
                             colors,
                             slicer=5)
-
+            
             plt.close('all')
 
 if selected == "GEOSPATIAL ANALYSIS" or selected == "SHOW ALL":
