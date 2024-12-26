@@ -12,7 +12,14 @@ import unicodedata
 import requests
 import tempfile
 from streamlit_option_menu import option_menu
+import webbrowser
 
+
+### PAGE SETTING
+st.set_page_config(
+    page_title="E-Commerce Data Analysis",
+    page_icon="🏂",
+    initial_sidebar_state="expanded")
 
 ############# STYLING #############
 # Font untuk matplotlib
@@ -1146,6 +1153,19 @@ with st.sidebar:
         max_value=max_date,
         value=[min_date, max_date]
     )
+
+    col1, col2, col3 = st.columns(spec=[0.23,0.37,0.37])
+
+    with col1:
+        st.html('<p><span>See</span> Also:</p>')
+
+    with col2:
+        if st.button(label="GitHub Repo"):
+            webbrowser.open_new_tab("https://github.com/Reminerva/data-analysis-dashboard")
+    
+    with col3:
+        if st.button(label="Google Colab"):
+            webbrowser.open_new_tab("https://colab.research.google.com/drive/1nEoGv81s4V6xQXyWLrH9mi97WQuH8pmz#scrollTo=DNDRdcC60dKS")
 
 
 ### Filter diterapkan

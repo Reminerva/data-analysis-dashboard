@@ -3,9 +3,3 @@ primaryColor="#7e74f1"
 backgroundColor="#fafafa"
 secondaryBackgroundColor="#f5f3fe"
 textColor="#232e35"
-
-[ui]
-wideMode = true
-
-[server]
-headless = true
