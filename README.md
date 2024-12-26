@@ -1,4 +1,4 @@
-# ![Logo Description](./img_icon.ico) E-Commerce Data Analysis Dashboard
+<img src="./img_icon.png" alt="My Logo" width="100"> # E-Commerce Data Analysis Dashboard
 This repository contains the implementation of an **E-commerce Data Analysis Dashboard** deployed using Streamlit. The dashboard provides comprehensive insights into e-commerce data through various analytical perspectives. It aims to assist businesses in making data-driven decisions by offering intuitive visualizations and analyses.
 
 A dashboard web app template built in Python using Streamlit.
