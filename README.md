@@ -3,14 +3,14 @@ This repository contains the implementation of an **E-commerce Data Analysis Das
 
 A dashboard web app template built in Python using Streamlit.
 
-## App:
+# App:
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://reksa-dashboard.streamlit.app/)
 
-## Colab notebook:
+# Colab notebook:
 [![Colab Notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1nEoGv81s4V6xQXyWLrH9mi97WQuH8pmz#scrollTo=NJfzNXQwumKZ)
 
-## Libraries
+# Libraries
 Here are the Python libraries used:
 - numpy
 - pandas
@@ -22,5 +22,5 @@ Here are the Python libraries used:
 - geopandas
 - streamlit_option_menu
 
-## Data source
+# Data source
 Brazilian E-Commerce Public Dataset by Olist [Kaggle.com](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce).
