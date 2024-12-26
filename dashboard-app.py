@@ -1453,17 +1453,20 @@ if selected == "PRODUCT ANALYSIS" or selected == "SHOW ALL":
     ## PRODUCT Analysis
     st.html('<h4><span>PRODUCT </span>ANALYSIS</h4>')
 
-    input_kota = st.selectbox(
-        label="Berapa kota yang ditampilkan?",
-        options=(2, 3, 4, 5, 6, 7, 8),
-        index=1
-    )
-
-    input_barang = st.selectbox(
-        label="Berapa kategori barang yang ditampilkan?",
-        options=(2, 3, 4, 5, 6, 7, 8, 9, 10),
-        index=4
-    )
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        input_kota = st.selectbox(
+            label="How many cities are displayed?",
+            options=(2, 3, 4, 5, 6, 7, 8),
+            index=1
+        )
+    with col2:
+        input_barang = st.selectbox(
+            label="How many product categories are displayed?",
+            options=(2, 3, 4, 5, 6, 7, 8, 9, 10),
+            index=4
+        )
 
     col1, col2 = st.columns(2)
 
