@@ -22,5 +22,5 @@ Here are the Python libraries used:
 - geopandas
 - streamlit_option_menu
 
-# Data source
+## Data source
 Brazilian E-Commerce Public Dataset by Olist [Kaggle.com](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce).
