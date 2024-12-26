@@ -44,6 +44,10 @@ st.html("""
         src: url('https://reminerva.github.io/Roboto-Medium.ttf') format("truetype");
         }
 
+        [data-testid="stHeader"] {
+            background-color: rgba(0,0,0,0);
+        }
+
         [data-testid="stMetric"] {
             background-color: #FFF;
             text-align: center;
@@ -71,6 +75,18 @@ st.html("""
             font-size: .9rem;
         }
 
+        [data-testid="stColumn"] li span{
+            color: #7e74f1;
+        }
+
+        [data-testid="stHtml"] p{
+            margin: .5rem 0;
+        }
+
+        [data-testid="stHtml"] p span{
+            color: #7e74f1;
+        }
+
         h4 {
             font-family: Roboto;
             text-align: center;
@@ -79,7 +95,7 @@ st.html("""
         }
 
         h4 span {
-            color: #7e74f1
+            color: #7e74f1;
         }
 
         h5 {
@@ -87,10 +103,11 @@ st.html("""
             text-align: center;
             padding: .5rem 0;
             font-size: 1.25rem;
+            margin: .5rem;
         }
 
         h5 span {
-            color: #7e74f1
+            color: #7e74f1;
         }
 
         </style>
@@ -1002,7 +1019,7 @@ def create_pie_chart(df_rfm_clustering: pd.DataFrame, title_):
 
 ##### GRAFIK PETA BRAZIL
 @st.cache_resource
-def create_map_brazil(column_, _brazil_df, _df_geo_point, colors_map):
+def create_map_brazil(column_, _brazil_df, _df_geo_point, colors_map, title_):
 
     axis = _brazil_df.plot(color = 'white', edgecolor='black', figsize=(10, 15))
     _df_geo_point.sort_values(by=column_, ascending=True).plot(ax = axis, column=column_,  cmap=ListedColormap(colors_map), markersize = 5, legend=True)
@@ -1012,7 +1029,7 @@ def create_map_brazil(column_, _brazil_df, _df_geo_point, colors_map):
         plt.text(coords.x, coords.y, city, fontsize=15, ha='center', color='black', fontproperties=custom_font)
 
     # Menambahkan judul
-    plt.title('Brazil Map', fontsize=25,fontproperties=custom_font)
+    plt.title(title_, fontsize=25,fontproperties=custom_font)
 
     plt.tight_layout()
 
@@ -1060,7 +1077,7 @@ def create_map_state_seller(state_map_select, _brazil_df, _df_geo_point, colors_
 
 ##### GRAFIK PETA BRAZIL PRODUCT DEMAND
 @st.cache_resource
-def create_map_brazil_product_dem(column_, _brazil_df, prod_cat_demand_select, _df_geo_point_cust, colors_map):
+def create_map_brazil_product_dem(column_, _brazil_df, prod_cat_demand_select, _df_geo_point_cust, colors_map, title_):
 
     _df_geo_point = create_df_product_demand(prod_cat_demand_select, _df_geo_point_cust)
 
@@ -1072,7 +1089,7 @@ def create_map_brazil_product_dem(column_, _brazil_df, prod_cat_demand_select, _
         plt.text(coords.x, coords.y, city, fontsize=15, ha='center', color='black', fontproperties=custom_font)
 
     # Menambahkan judul
-    plt.title('Peta Provinsi Brazil', fontsize=25,fontproperties=custom_font)
+    plt.title(title_, fontsize=25,fontproperties=custom_font)
 
     plt.tight_layout()
 
@@ -1080,7 +1097,7 @@ def create_map_brazil_product_dem(column_, _brazil_df, prod_cat_demand_select, _
 
 ##### GRAFIK PETA BRAZIL PRODUCT SUPPLY
 @st.cache_resource
-def create_map_brazil_product_sup(column_, _brazil_df, prod_cat_supply_select, _df_geo_point_cust, colors_map):
+def create_map_brazil_product_sup(column_, _brazil_df, prod_cat_supply_select, _df_geo_point_cust, colors_map, title_):
 
     _df_geo_point = create_df_product_supply(prod_cat_supply_select, _df_geo_point_cust)
 
@@ -1092,7 +1109,7 @@ def create_map_brazil_product_sup(column_, _brazil_df, prod_cat_supply_select, _
         plt.text(coords.x, coords.y, city, fontsize=15, ha='center', color='black', fontproperties=custom_font)
 
     # Menambahkan judul
-    plt.title('Peta Provinsi Brazil', fontsize=25,fontproperties=custom_font)
+    plt.title(title_, fontsize=25,fontproperties=custom_font)
 
     plt.tight_layout()
 
@@ -1274,11 +1291,20 @@ if selected == "SALES ANALYSIS" or selected == "SHOW ALL":
 
     with col2:
         
-        state = st.selectbox(
-            label="Choose State:",
-            options=df_sellers_state_merged.index,
-            index=0
-        )
+        col_1, col_2 = st.columns(spec=[0.5, 0.5])
+        
+        with col_1:
+
+            st.html("<p>Choose <span>State</span>:</p>")
+
+        with col_2:
+
+            state = st.selectbox(
+                label="Choose State:",
+                options=df_sellers_state_merged.index,
+                index=0,
+                label_visibility='collapsed'
+            )
 
         df_monthly_seller_state = create_df_monthly_seller_state(state, df_order_items_update, df_sellers, df_order)
 
@@ -1290,11 +1316,20 @@ if selected == "SALES ANALYSIS" or selected == "SHOW ALL":
 
         plt.close('all')
 
-        city = st.selectbox(
-            label="Choose City:",
-            options=df_sellers_city_merged.index,
-            index=0
-        )
+        col_1, col_2 = st.columns(spec=[0.5, 0.5])
+        
+        with col_1:
+
+            st.html("<p>Choose <span>City</span>:</p>")
+
+        with col_2:
+
+            city = st.selectbox(
+                label="Choose City:",
+                options=list(i.title() for i in df_sellers_city_merged.index),
+                index=0,
+                label_visibility='collapsed'
+            ).lower()
 
         df_monthly_seller_city = create_df_monthly_seller_city(city, df_order_items_update, df_sellers, df_order)
 
@@ -1360,11 +1395,19 @@ if selected == "CUSTOMER ANALYSIS" or selected == "SHOW ALL":
 
     with col2:
 
-        state = st.selectbox(
-            label="Choose State:",
-            options=df_customer_state_merged.index,
-            index=0
-        )
+        col_1, col_2 = st.columns(spec=[0.5, 0.5])
+        
+        with col_1:
+
+            st.html("<p>Choose <span>State</span>:</p>")
+
+        with col_2:
+            state = st.selectbox(
+                label="Choose State:",
+                options=df_customer_state_merged.index,
+                index=0,
+                label_visibility='collapsed'
+            )
 
         df_monthly_customer_state = create_df_monthly_customer_state(state, df_order_update, df_order_payments, df_customer)
         
@@ -1376,11 +1419,20 @@ if selected == "CUSTOMER ANALYSIS" or selected == "SHOW ALL":
 
         plt.close('all')
 
-        city = st.selectbox(
-            label="Choose City:",
-            options=df_customer_city_merged.index,
-            index=0
-        )
+        col_1, col_2 = st.columns(spec=[0.5, 0.5])
+        
+        with col_1:
+
+            st.html("<p>Choose <span>City</span>:</p>")
+
+        with col_2:
+
+            city = st.selectbox(
+                label="Choose City:",
+                options=list(i.title() for i in df_customer_city_merged.index),
+                index=0,
+                label_visibility='collapsed'
+            ).lower()
 
         df_monthly_customer_city = create_df_monthly_customer_city(city, df_order_update, df_order_payments, df_customer)
         
@@ -1395,10 +1447,20 @@ if selected == "CUSTOMER ANALYSIS" or selected == "SHOW ALL":
 if selected == "RFM ANALYSIS" or selected == "SHOW ALL":
     ## RFM Analysis
     st.html('<h4><span>RFM </span>ANALYSIS</h4>')
+
+    col1, col2= st.columns(spec=[.4,0.6])
+
     monthly_transactions, daily_transactions = create_monthly_transactions(df_order_items_update)
-    period = int((st.selectbox(label=f"Select Period: (today: {daily_transactions['year_month_day'].max()})",
-                                options=("30 days ago", "60 days ago", "90 days ago"),
-                                index=0))[:2])
+
+    with col1:
+        st.html(f"<p><span>Select Period:</span> (Today: {daily_transactions['year_month_day'].max()})</p>")
+
+    with col2:
+        
+        period = int((st.selectbox(label=f"Select Period: (today: {daily_transactions['year_month_day'].max()})",
+                                    options=("30 days ago", "60 days ago", "90 days ago"),
+                                    index=0,
+                                    label_visibility='collapsed'))[:2])
 
     col1, col2, col3 = st.columns(3)
 
@@ -1445,28 +1507,45 @@ if selected == "RFM ANALYSIS" or selected == "SHOW ALL":
 
     with col2:
         st.html("""<p>This pie chart illustrates the distribution of customers into three priority categories based on the RFM (Recency, Frequency, Monetary) analysis:
-                <li>1st Priority - Customers with high values in two or more RFM dimensions.</li>
-                <li>2nd Priority - Customers with high values in one RFM dimension.</li>
-                <li>3rd Priority - Customers with low values across all RFM dimensions.</li></p>""")
+                <li><span>1st Priority</span> - Customers with high values in two or more RFM dimensions.</li>
+                <li><span>2nd Priority</span> - Customers with high values in one RFM dimension.</li>
+                <li><span>3rd Priority</span> - Customers with low values across all RFM dimensions.</li></p>""")
 
 if selected == "PRODUCT ANALYSIS" or selected == "SHOW ALL":
     ## PRODUCT Analysis
     st.html('<h4><span>PRODUCT </span>ANALYSIS</h4>')
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(spec=[0.45, 0.55])
     
     with col1:
-        input_kota = st.selectbox(
-            label="How many cities are displayed?",
-            options=(2, 3, 4, 5, 6, 7, 8),
-            index=1
-        )
+
+        col_1, col_2 = st.columns(spec=[0.6, 0.3])
+        
+        with col_1:
+            st.html("<p>How many cities?</p>")
+        
+        with col_2:
+            input_kota = st.selectbox(
+                label="How many cities?",
+                options=(2, 3, 4, 5, 6, 7, 8),
+                index=1,
+                label_visibility='collapsed'
+            )
+            
     with col2:
-        input_barang = st.selectbox(
-            label="How many product categories are displayed?",
-            options=(2, 3, 4, 5, 6, 7, 8, 9, 10),
-            index=4
-        )
+
+        col_1, col_2 = st.columns(spec=[0.6, 0.3])
+        
+        with col_1:
+            st.html("<p>How many product categories?</p>")
+        
+        with col_2:
+            input_barang = st.selectbox(
+                label="How many product categories?",
+                options=(2, 3, 4, 5, 6, 7, 8, 9, 10),
+                index=4,
+                label_visibility='collapsed'
+            )
 
     col1, col2 = st.columns(2)
 
@@ -1535,31 +1614,46 @@ if selected == "GEOSPATIAL ANALYSIS" or selected == "SHOW ALL":
             "#FFD700", "#F900B4", "#8B4513"   # Warm and natural colors
         ]
 
-        create_map_brazil('customer_state', brazil_df, df_geo_point_cust, colors_map_cust)
+        create_map_brazil('customer_state', 
+                          brazil_df,
+                          df_geo_point_cust, 
+                          colors_map_cust,
+                          'Customers Location Distribution in Brazil')
 
         plt.close('all')
         
+        # st.html("<p>Choose <span>Customer</span> State:</p>")
+
         state_map_select_cust = st.selectbox(
             label="Choose Customer State:",
             options=df_customer_state_merged['index+id'],
-            index=0
+            index=0,
         )[:2]
 
         create_map_state_customer(state_map_select_cust, brazil_df[['geometry', 'UF']], df_geo_point_cust['geometry'], colors_map_cust)
 
         plt.close('all')
 
+
+
         st.html('<h5>PRODUCT<span> DEMAND </span>SECTION</h5>')
+
+        # st.html("<p>Choose <span>Product Category</span>:</p>")
 
         prod_cat_demand_select = st.selectbox(
             label="Choose Product Category:",
             options=prod_demand_counts['index+count'],
-            index=0
+            index=0,
         )
 
         # df_product_demand = create_df_product_demand(prod_cat_demand_select, df_geo_point_cust)
 
-        create_map_brazil_product_dem('customer_state', brazil_df, prod_cat_demand_select, df_geo_point_cust, colors_map_cust)
+        create_map_brazil_product_dem('customer_state',
+                                      brazil_df, 
+                                      prod_cat_demand_select, 
+                                      df_geo_point_cust, 
+                                      colors_map_cust,
+                                      f"{prod_cat_demand_select} Demand in Brazil")
 
         plt.close('all')
 
@@ -1575,31 +1669,46 @@ if selected == "GEOSPATIAL ANALYSIS" or selected == "SHOW ALL":
             "#FFD700", "#F900B4",  # Warm and natural colors
         ]
 
-        create_map_brazil('seller_state', brazil_df, df_geo_point_sel, colors_map_sel)
+        create_map_brazil('seller_state', 
+                          brazil_df, 
+                          df_geo_point_sel, 
+                          colors_map_sel,
+                          "Sellers Location Distribution in Brazil")
 
         plt.close('all')
+
+        # st.html("<p>Choose <span>Seller</span> State:</p>")
 
         state_map_select_sel = st.selectbox(
             label="Choose Seller State:",
             options=df_sellers_state_merged['index+id'],
-            index=0
+            index=0,
         )[:2]
 
         create_map_state_seller(state_map_select_sel, brazil_df[['geometry', 'UF']], df_geo_point_sel['geometry'], colors_map_cust)
 
         plt.close('all')
 
+
+
         st.html('<h5>PRODUCT<span> SUPPLY </span>SECTION</h5>')
 
         prod_supply_counts = create_prod_supply_counts(df_geo_point_sel)
 
+        # st.html("<p>Choose <span>Product Category</span>:</p>")
+
         prod_cat_supply_select = st.selectbox(
             label="Choose Product Category:",
             options=prod_supply_counts['index+count'],
-            index=0
+            index=0,
         )
 
-        create_map_brazil_product_sup('seller_state', brazil_df, prod_cat_supply_select, df_geo_point_sel, colors_map_cust)
+        create_map_brazil_product_sup('seller_state',
+                                      brazil_df, 
+                                      prod_cat_supply_select, 
+                                      df_geo_point_sel, 
+                                      colors_map_cust,
+                                      f"{prod_cat_supply_select} Supplier in Brazil")
 
         plt.close('all')
 
