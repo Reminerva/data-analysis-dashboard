@@ -18,7 +18,7 @@ import webbrowser
 ### PAGE SETTING
 st.set_page_config(
     page_title="E-Commerce Data Analysis",
-    page_icon="🏂",
+    page_icon="https://reminerva.github.io/img_icon.ico",
     initial_sidebar_state="expanded")
 
 ############# STYLING #############
