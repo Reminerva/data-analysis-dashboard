@@ -1231,7 +1231,7 @@ with st.sidebar:
     with col2:
         st.markdown(
             """
-            <a href="https://drive.google.com/file/d/1MsAjPM7oKtVfJL_wRp1qmCajtSG1mdcK/view" target="_blank" style="text-decoration: none;">
+            <a href="https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce" target="_blank" style="text-decoration: none;">
                 <div style="
                     display: inline-flex;
                     -webkit-box-align: center;
@@ -1250,7 +1250,7 @@ with st.sidebar:
                     border: 1px solid rgba(49, 51, 63, 0.2);
                     box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 0px 0px;
                     ">
-                    Google Drive
+                    Kaggle Dataset
                 </div>
             </a>
             """,
