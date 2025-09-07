@@ -1250,7 +1250,7 @@ with st.sidebar:
                     border: 1px solid rgba(49, 51, 63, 0.2);
                     box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 0px 0px;
                     ">
-                    GitHub Repo
+                    Google Drive
                 </div>
             </a>
             """,
