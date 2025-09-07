@@ -1168,17 +1168,27 @@ with st.sidebar:
     with col2:
         st.markdown(
             """
-            <a href="https://github.com/Reminerva/data-analysis-dashboard" target="_blank">
-                <button style="
-                    background-color: #f63366; 
-                    color: white;
-                    padding: 10px 24px;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-weight: bold;">
+            <a href="https://github.com/Reminerva/data-analysis-dashboard" target="_blank" style="text-decoration: none;">
+                <div style="
+                    display: inline-flex;
+                    -webkit-box-align: center;
+                    align-items: center;
+                    -webkit-box-pack: center;
+                    justify-content: center;
+                    font-weight: 400;
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 0.25rem;
+                    margin: 0px;
+                    line-height: 1.6;
+                    width: auto;
+                    user-select: none;
+                    background-color: rgb(255, 255, 255);
+                    color: rgb(49, 51, 63);
+                    border: 1px solid rgba(49, 51, 63, 0.2);
+                    box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 0px 0px;
+                    ">
                     GitHub Repo
-                </button>
+                </div>
             </a>
             """,
             unsafe_allow_html=True
@@ -1187,17 +1197,61 @@ with st.sidebar:
     with col3:
         st.markdown(
             """
-            <a href="https://colab.research.google.com/drive/1nEoGv81s4V6xQXyWLrH9mi97WQuH8pmz#scrollTo=DNDRdcC60dKS" target="_blank">
-                <button style="
-                    background-color: #f63366; 
-                    color: white;
-                    padding: 10px 24px;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-weight: bold;">
+            <a href="https://colab.research.google.com/drive/1nEoGv81s4V6xQXyWLrH9mi97WQuH8pmz#scrollTo=DNDRdcC60dKS" target="_blank" style="text-decoration: none;">
+                <div style="
+                    display: inline-flex;
+                    -webkit-box-align: center;
+                    align-items: center;
+                    -webkit-box-pack: center;
+                    justify-content: center;
+                    font-weight: 400;
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 0.25rem;
+                    margin: 0px;
+                    line-height: 1.6;
+                    width: auto;
+                    user-select: none;
+                    background-color: rgb(255, 255, 255);
+                    color: rgb(49, 51, 63);
+                    border: 1px solid rgba(49, 51, 63, 0.2);
+                    box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 0px 0px;
+                    ">
                     Google Colab
-                </button>
+                </div>
+            </a>
+            """,
+            unsafe_allow_html=True
+        )
+
+    col1, col2 = st.columns(spec=[0.23,0.77])
+
+    with col1:
+        st.html('<p><span>Raw</span> Data:</p>')
+    
+    with col2:
+        st.markdown(
+            """
+            <a href="https://drive.google.com/file/d/1MsAjPM7oKtVfJL_wRp1qmCajtSG1mdcK/view" target="_blank" style="text-decoration: none;">
+                <div style="
+                    display: inline-flex;
+                    -webkit-box-align: center;
+                    align-items: center;
+                    -webkit-box-pack: center;
+                    justify-content: center;
+                    font-weight: 400;
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 0.25rem;
+                    margin: 0px;
+                    line-height: 1.6;
+                    width: auto;
+                    user-select: none;
+                    background-color: rgb(255, 255, 255);
+                    color: rgb(49, 51, 63);
+                    border: 1px solid rgba(49, 51, 63, 0.2);
+                    box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 0px 0px;
+                    ">
+                    GitHub Repo
+                </div>
             </a>
             """,
             unsafe_allow_html=True
