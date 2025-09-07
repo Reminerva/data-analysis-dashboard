@@ -1223,10 +1223,10 @@ with st.sidebar:
             unsafe_allow_html=True
         )
 
-    col1, col2 = st.columns(spec=[0.23,0.77])
+    col1, col2, col3 = st.columns(spec=[0.23,0.37,0.37])
 
     with col1:
-        st.html('<p><span>Raw</span> Data:</p>')
+        st.html('<p>Raw <span>Data</span>:</p>')
     
     with col2:
         st.markdown(
