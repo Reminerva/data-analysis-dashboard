@@ -26,13 +26,18 @@ st.set_page_config(
 font_url = 'https://reminerva.github.io/Roboto-Medium.ttf'
 
 # Unduh font ke file sementara
+# Unduh font ke file sementara
 response = requests.get(font_url)
 with tempfile.NamedTemporaryFile(delete=False, suffix='.ttf') as temp_font_file:
     temp_font_file.write(response.content)
-    temp_font_path = temp_font_file.name  # Path ke file sementara
+    temp_font_path = temp_font_file.name # Path ke file sementara
 
 # Load font custom
 custom_font = font_manager.FontProperties(fname=temp_font_path)
+
+# Tambahkan font ke Matplotlib dan perbarui cache
+font_manager.fontManager.addfont(temp_font_path)
+font_manager.fontManager.findfont(custom_font.get_name(), fallback_to_default=False)
 
 # Set font sebagai default
 rcParams['font.family'] = custom_font.get_name()
@@ -226,9 +231,9 @@ def create_pivot_seller_and_order(df_order_items: pd.DataFrame,
         pivot_seller = df_temp[df_temp['order_id'].isin(kelompok_seller)].groupby(by='seller_id').agg({
                                                                     'price': ['sum','mean','max', 'min'],
                                                                     'freight_value': ['sum','mean','max', 'min'],
-                                                                    'product_id' : lambda x: list(x),
-                                                                    'product_category_name' : lambda x: list(x),
-                                                                    'shipping_limit_date' : lambda x: list(x)
+                                                                    'product_id' : lambda x: tuple(x),
+                                                                    'product_category_name' : lambda x: tuple(x),
+                                                                    'shipping_limit_date' : lambda x: tuple(x)
                                                                     }).sort_values(by=('price','sum'), ascending=False)
         pivot_seller.columns = ['_'.join(col).strip() for col in pivot_seller.columns.values]
         
@@ -241,8 +246,8 @@ def create_pivot_seller_and_order(df_order_items: pd.DataFrame,
         df_temp = df_temp[df_temp['order_id'].isin(kelompok_customer)].groupby(by='order_id').agg({
                                                                     'price': ['sum','mean','max', 'min'],
                                                                     'freight_value': ['sum','mean','max', 'min'],
-                                                                    'product_id' : lambda x: list(x),
-                                                                    'product_category_name' : lambda x: list(x)
+                                                                    'product_id' : lambda x: tuple(x),
+                                                                    'product_category_name' : lambda x: tuple(x)
                                                                     }).sort_values(by=('price','sum'), ascending=False)
         df_temp.columns = ['_'.join(col).strip() for col in df_temp.columns.values]
         
@@ -848,8 +853,8 @@ def return_kategori_di_kota_beli(df_customer_city_merged: pd.DataFrame) -> list:
 #     df_customer_klaster = df_customer_merged[['customer_id','payment_value_sum','Klaster']]
 
 #     df_customer_klaster = df_customer_klaster.groupby(by='Klaster').agg({'Klaster': 'count'
-#                                                                         ,'customer_id': lambda x: list(x)
-#                                                                         ,'payment_value_sum': lambda x: list(x)})
+#                                                                         ,'customer_id': lambda x: tuple(x)
+#                                                                         ,'payment_value_sum': lambda x: tuple(x)})
 
 #     df_customer_klaster.columns = ['customer_id_count','customer_id','payment_value_sum']
 
@@ -893,8 +898,8 @@ def return_kategori_di_kota_beli(df_customer_city_merged: pd.DataFrame) -> list:
 #     df_sellers_klaster = df_sellers_merged[['seller_id','price_sum','Klaster']]
 
 #     df_sellers_klaster = df_sellers_klaster.groupby(by='Klaster').agg({'Klaster': 'count'
-#                                                                     ,'seller_id': lambda x: list(x)
-#                                                                     ,'price_sum': lambda x: list(x)})
+#                                                                     ,'seller_id': lambda x: tuple(x)
+#                                                                     ,'price_sum': lambda x: tuple(x)})
 
 #     df_sellers_klaster.columns = ['seller_id_count','seller_id','price_sum']
 
@@ -1159,14 +1164,44 @@ with st.sidebar:
     with col1:
         st.html('<p><span>See</span> Also:</p>')
 
+    # Mengganti tombol dengan link yang diformat seperti tombol
     with col2:
-        if st.button(label="GitHub Repo"):
-            webbrowser.open_new_tab("https://github.com/Reminerva/data-analysis-dashboard")
-    
-    with col3:
-        if st.button(label="Google Colab"):
-            webbrowser.open_new_tab("https://colab.research.google.com/drive/1nEoGv81s4V6xQXyWLrH9mi97WQuH8pmz#scrollTo=DNDRdcC60dKS")
+        st.markdown(
+            """
+            <a href="https://github.com/Reminerva/data-analysis-dashboard" target="_blank">
+                <button style="
+                    background-color: #f63366; 
+                    color: white;
+                    padding: 10px 24px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: bold;">
+                    GitHub Repo
+                </button>
+            </a>
+            """,
+            unsafe_allow_html=True
+        )
 
+    with col3:
+        st.markdown(
+            """
+            <a href="https://colab.research.google.com/drive/1nEoGv81s4V6xQXyWLrH9mi97WQuH8pmz#scrollTo=DNDRdcC60dKS" target="_blank">
+                <button style="
+                    background-color: #f63366; 
+                    color: white;
+                    padding: 10px 24px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: bold;">
+                    Google Colab
+                </button>
+            </a>
+            """,
+            unsafe_allow_html=True
+        )
 
 ### Filter diterapkan
 df_order_update = df_order[(df_order["order_purchase_timestamp"] >= str(start_date)) &
